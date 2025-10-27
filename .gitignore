@@ -1,0 +1,12 @@
+/vendor/
+/composer.lock
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+/tests/temp/
+/templates/copied/
+.env
+.env.local
+.env.production
