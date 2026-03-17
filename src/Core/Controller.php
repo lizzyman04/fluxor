@@ -1,8 +1,8 @@
 <?php
 
-namespace MVCCore\Core;
+namespace Fluxor\Core;
 
-use MVCCore\Contracts\ControllerInterface;
+use Fluxor\Contracts\ControllerInterface;
 
 abstract class Controller implements ControllerInterface
 {
@@ -42,12 +42,4 @@ abstract class Controller implements ControllerInterface
     {
         return Response::redirect($url, $statusCode);
     }
-
-    public function index() {}
-    public function show($id) {}
-    public function create() {}
-    public function store() {}
-    public function edit($id) {}
-    public function update($id) {}
-    public function destroy($id) {}
 }

@@ -1,19 +1,22 @@
 <?php
 
-namespace MVCCore\Core;
+namespace Fluxor\Core;
 
-use MVCCore\Exceptions\AppException;
+use Fluxor\Exceptions\AppException;
 
 class Router
 {
     private string $basePath;
+    private string $baseUrl;
     private array $config = [];
     private array $routeCache = [];
+    private array $middlewares = [];
     private const CACHE_TTL = 300;
 
-    public function __construct(string $basePath = '')
+    public function __construct(string $basePath = '', string $baseUrl = '')
     {
         $this->basePath = $basePath;
+        $this->baseUrl = $baseUrl;
     }
 
     public function setBasePath(string $basePath): self
@@ -28,9 +31,45 @@ class Router
         return $this;
     }
 
+    public function addMiddleware(string $name, callable $middleware): self
+    {
+        $this->middlewares[$name] = $middleware;
+        return $this;
+    }
+
+    public function removeMiddleware(string $name): self
+    {
+        unset($this->middlewares[$name]);
+        return $this;
+    }
+
+    private function runMiddlewares(Request $request): ?Response
+    {
+        foreach ($this->middlewares as $name => $middleware) {
+            $result = $middleware($request);
+            
+            if ($result instanceof Response) {
+                return $result;
+            }
+            
+            if ($result === false) {
+                return Response::error('Middleware blocked request', 403);
+            }
+        }
+        
+        return null;
+    }
+
     public function dispatch(): void
     {
         $request = $this->createRequest();
+        
+        $middlewareResponse = $this->runMiddlewares($request);
+        if ($middlewareResponse) {
+            $this->sendResponse($middlewareResponse);
+            return;
+        }
+        
         $routeInfo = $this->findRoute($request->path);
 
         if ($routeInfo) {
@@ -63,9 +102,25 @@ class Router
         $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
         $url = parse_url($requestUri, PHP_URL_PATH) ?? '/';
 
-        $baseUrl = rtrim(str_replace('/public', '', $this->config['base_url'] ?? ''), '/');
-        if ($baseUrl && strpos($url, $baseUrl) === 0) {
-            $url = substr($url, strlen($baseUrl));
+        if (!empty($this->config['base_url'])) {
+            $parsedBase = parse_url($this->config['base_url']);
+            $basePath = $parsedBase['path'] ?? '';
+            
+            if ($basePath && strpos($url, $basePath) === 0) {
+                $url = substr($url, strlen($basePath));
+            }
+        } 
+        elseif (!empty($this->baseUrl)) {
+            $parsedBase = parse_url($this->baseUrl);
+            $basePath = $parsedBase['path'] ?? '';
+            
+            if ($basePath && strpos($url, $basePath) === 0) {
+                $url = substr($url, strlen($basePath));
+            }
+        }
+        
+        if (strpos($url, '/public') === 0) {
+            $url = substr($url, 7);
         }
 
         $url = explode('?', $url)[0];
@@ -354,5 +409,10 @@ class Router
     public function clearCache(): void
     {
         $this->routeCache = [];
+    }
+
+    public function getMiddlewares(): array
+    {
+        return $this->middlewares;
     }
 }

@@ -1,6 +1,6 @@
 <?php
 
-namespace MVCCore\Core;
+namespace Fluxor\Core;
 
 class Request
 {

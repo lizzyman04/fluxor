@@ -1,6 +1,6 @@
 <?php
 
-namespace MVCCore\Exceptions;
+namespace Fluxor\Exceptions;
 
 use Exception;
 

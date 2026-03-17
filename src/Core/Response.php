@@ -1,10 +1,12 @@
 <?php
 
-namespace MVCCore\Core;
+namespace Fluxor\Core;
 
 class Response
 {
+    /** @var mixed|null */
     private $data;
+    
     private int $statusCode;
     private array $headers = [];
 
@@ -82,9 +84,8 @@ class Response
             'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
         ], $headers));
 
-        $response->data = function () use ($filePath) {
-            readfile($filePath);
-        };
+        $response->data = $filePath;
+        $response->headers['Content-Type'] = 'application/octet-stream';
 
         return $response;
     }
@@ -129,12 +130,17 @@ class Response
         }
 
         if ($this->data !== null) {
-            if (is_callable($this->data)) {
-                call_user_func($this->data);
-            } elseif (is_array($this->data) || is_object($this->data)) {
+            if (isset($this->headers['Content-Type']) && $this->headers['Content-Type'] === 'application/octet-stream' && is_string($this->data) && file_exists($this->data)) {
+                readfile($this->data);
+            }
+            elseif (is_array($this->data) || is_object($this->data)) {
                 echo json_encode($this->data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-            } else {
+            }
+            elseif (is_string($this->data)) {
                 echo $this->data;
+            }
+            else {
+                echo (string) $this->data;
             }
         }
     }

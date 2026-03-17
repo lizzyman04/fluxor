@@ -1,8 +1,8 @@
 <?php
 
-namespace MVCCore\Core;
+namespace Fluxor\Core;
 
-use MVCCore\Exceptions\AppException;
+use Fluxor\Exceptions\AppException;
 
 class Flow
 {

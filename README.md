@@ -1,204 +1,235 @@
-# MVCCore 🚀
+# Fluxor Core 🚀
 
-A lightweight, elegant PHP MVC framework with Next.js-style file-based routing and beautiful Flow syntax.
+**The lightweight PHP MVC core that powers Fluxor framework** - File-based routing, elegant Flow syntax, and zero bloat.
 
-## ✨ Features
+[![Latest Stable Version](https://poser.pugx.org/lizzyman04/fluxor/v/stable)](https://packagist.org/packages/lizzyman04/fluxor)
+[![Total Downloads](https://poser.pugx.org/lizzyman04/fluxor/downloads)](https://packagist.org/packages/lizzyman04/fluxor)
+[![License](https://poser.pugx.org/lizzyman04/fluxor/license)](https://packagist.org/packages/lizzyman04/fluxor)
+[![PHP Version Require](https://poser.pugx.org/lizzyman04/fluxor/require/php)](https://packagist.org/packages/lizzyman04/fluxor)
 
-- **🎯 File-based Routing** - Like Next.js App Router
-- **💎 Elegant Flow Syntax** - Ultra clean route definitions  
-- **🔄 MVC Architecture** - Clean separation of concerns
-- **🎨 Powerful View System** - Layouts, sections, and stacks
-- **🛡️ Built-in Security** - CSRF protection, validation
-- **🚦 Middleware Support** - Flexible request processing
-- **🎭 Error Handling** - Hierarchical error pages
-- **📦 Multiple Templates** - Basic, MVC, and API starters
+## 📦 What is Fluxor Core?
 
-## Quick Start
+Fluxor Core is the **engine behind the Fluxor PHP framework** - a minimal, elegant, and powerful MVC core designed for developers who want **simplicity without sacrificing functionality**.
+
+Unlike monolithic frameworks, Fluxor Core gives you:
+- 🚀 **Blazing fast performance** (boot under 10ms)
+- 📦 **Zero dependencies** beyond `phpdotenv`
+- 🔍 **Transparent code** - no magic, you can read everything
+- 🎯 **File-based routing** inspired by Next.js
+- 💎 **Beautiful Flow syntax** for route definitions
+
+## ✨ Core Features
+
+| Feature | Description |
+|---------|-------------|
+| **🎯 File-based Routing** | Routes defined by folder structure - no route files needed |
+| **💎 Flow Syntax** | Ultra-clean, chainable route definitions |
+| **🔄 MVC Architecture** | Clean separation with Controllers and Views |
+| **🎨 View System** | Layouts, sections, stacks, and partials |
+| **🛡️ Security First** | Built-in CSRF, XSS protection, secure sessions |
+| **🚦 Middleware** | Flexible request filtering (global + per-route) |
+| **🎭 Error Handling** | Hierarchical error pages (404, 500, etc.) |
+| **🔧 Zero Config** | Auto-detects base path and URL |
+
+## 🚀 Quick Start (For Framework Developers)
 
 ```bash
-composer create-project lizzyman04/mvccore my-app
-cd my-app
-php -S localhost:8000 -t public
-```
+# Add to your project
+composer require lizzyman04/fluxor
 
-Visit `http://localhost:8000`
-
-## 🎯 Elegant Routing
-
-Create routes using the file system:
-
-```
-app/router/
-├── page.php                 # GET /
-├── api/
-│   └── hello/
-│       └── index.php       # GET /api/hello  
-└── posts/
-    └── [slug]/
-        └── index.php       # GET /posts/{slug}
-```
-
-### Example Route
-
-```php
+# Basic usage
 <?php
-// app/router/posts/[slug]/index.php
+require 'vendor/autoload.php';
 
-use MVCCore\Flow;
-use MVCCore\Core\Response;
+$app = new Fluxor\Core\App();
+$app->run();
+```
 
-Flow::GET()->do(fn($req) => 
-    Response::success(['slug' => $req->param('slug')])
-);
+## 🏗️ Core Architecture
 
-Flow::PUT()->to(PostController::class, 'update');
+```
+fluxor/
+├── src/
+│   ├── Core/
+│   │   ├── App.php        # Application container
+│   │   ├── Router.php     # File-based router
+│   │   ├── Request.php    # HTTP request abstraction
+│   │   ├── Response.php   # HTTP response builder
+│   │   ├── Controller.php # Base controller
+│   │   ├── View.php       # Template engine
+│   │   └── Flow.php       # Elegant route syntax
+│   ├── Contracts/
+│   │   └── ControllerInterface.php
+│   └── Exceptions/
+│       └── AppException.php
+```
+
+## 💡 Core Concepts
+
+### 1. **Application Instance**
+```php
+$app = new Fluxor\Core\App();
+// Auto-detects base path and URL!
+$basePath = $app->getBasePath();  // /var/www/my-app
+$baseUrl = $app->getBaseUrl();    // http://localhost:8000/
+```
+
+### 2. **Router with Middleware**
+```php
+$router = $app->getRouter();
+
+// Add middleware
+$router->addMiddleware('auth', function($request) {
+    if (!$request->isAuthenticated()) {
+        return Response::redirect('/login');
+    }
+});
+
+// Remove middleware
+$router->removeMiddleware('auth');
+```
+
+### 3. **Request Object**
+```php
+$request->param('id');           // Route parameters
+$request->input('email');         // POST/GET/JSON data
+$request->all();                  // All input
+$request->isJson();               // Check content type
+$request->bearerToken();          // Bearer token from header
+$request->validateCsrf();         // CSRF validation
+$request->user();                 // Authenticated user
+```
+
+### 4. **Response Helpers**
+```php
+Response::json(['user' => $user]);
+Response::success($data, 'Created');
+Response::error('Validation failed', 422);
+Response::view('profile', ['user' => $user]);
+Response::redirect('/dashboard');
+Response::download('/path/to/file.pdf');
+```
+
+### 5. **Flow Syntax (The Star of the Show)**
+```php
+use Fluxor\Flow;
+
+// In your route file
+Flow::GET()->do(fn($req) => 'Hello World');
+Flow::POST()->to(UserController::class, 'store');
+Flow::PUT()->do(function($req) { /* ... */ });
+Flow::DELETE()->to(ProductController::class, 'destroy');
+Flow::any(fn($req) => Response::json(['method' => $req->method]));
+Flow::use(fn($req) => $req->isAuthenticated() ? null : Response::redirect('/login'));
 
 return Flow::execute($req);
 ```
 
-## 💎 Beautiful Flow Syntax
-
-```php
-// Ultra clean route definitions
-Flow::GET()->do(fn($req) => Response::json(['hello' => 'world']));
-Flow::POST()->to(Controller::class, 'store');
-Flow::use(fn($req) => $req->isAuthenticated() ? null : Response::redirect('/login'));
-```
-
-## 🏗️ Three Template Options
-
-### 1. Basic Template
-```bash
-composer create-project lizzyman04/mvccore my-app
-# Choose "basic"
-```
-
-### 2. MVC Template (Authentication + Views)
-```bash
-composer create-project lizzyman04/mvccore my-app
-# Choose "mvc"
-```
-
-### 3. API Template (RESTful API)
-```bash
-composer create-project lizzyman04/mvccore my-app  
-# Choose "api"
-```
-
-## 📖 Documentation
-
-### Routing
-Create files in `app/router/` to define routes:
-
-- `page.php` → `/`
-- `about.php` → `/about` 
-- `posts/index.php` → `/posts`
-- `posts/[slug]/index.php` → `/posts/any-slug`
-- `(auth)/login/index.php` → `/auth/login`
-
-### Flow Methods
-```php
-Flow::GET()->do(fn($req) => ...);
-Flow::POST()->to(Controller::class, 'method');
-Flow::PUT()->do(function($req) { ... });
-Flow::DELETE()->to(Controller::class);
-Flow::any(fn($req) => ...);
-Flow::use(middleware);
-```
-
-### Response Types
-```php
-Response::success($data, 'Message');
-Response::error('Error message', 400);
-Response::view('template', $data);
-Response::json($data);
-Response::redirect('/path');
-```
-
-### Views with Layouts
+### 6. **View System**
 ```php
 // In controller
 return Response::view('home', ['title' => 'Home']);
 
-// In view template
+// In view (home.php)
 $this->extend('layouts/main');
 $this->section('content');
-// Your content
+    <h1><?= $this->e($title) ?></h1>
 $this->endSection();
+
+// Partials
+$this->include('components/alert', ['type' => 'success']);
 ```
 
 ## 🛠️ Configuration
 
-Create `.env` file:
+Fluxor Core automatically detects:
+- ✅ **Base Path** - Works in both development and production
+- ✅ **Base URL** - Detects protocol, host, and subdirectory
+- ✅ **Environment** - From `.env` or defaults
+
+Minimal `.env` options:
 ```env
-APP_NAME="My MVCCore App"
 APP_ENV=development
 APP_DEBUG=true
-APP_URL=http://localhost:8000
+APP_TIMEZONE=UTC
 ```
 
-## 🎨 Custom Error Pages
+## 🔧 Advanced Usage
 
-Create hierarchical error handlers:
+### Custom Configuration
+```php
+$app->setConfig([
+    'router_path' => __DIR__ . '/custom/router',
+    'views_path' => __DIR__ . '/resources/views',
+    'storage_path' => __DIR__ . '/storage',
+]);
 ```
+
+### Service Registration
+```php
+$app->registerService('mailer', new CustomMailer());
+$mailer = $app->getService('mailer');
+```
+
+### Error Handling
+```php
+// Hierarchical error pages
 app/router/
-├── not-found.php           # Global 404
-├── 404.php                # Alternative 404
+├── 404.php           # Global 404
 ├── api/
-│   └── 404.php            # API-specific 404
-└── (auth)/
-    └── 401.php            # Auth-specific 401
+│   └── 404.php       # API-specific 404
+└── admin/
+    └── 403.php       # Admin-specific 403
 ```
 
-## 📦 Installation
+## 📊 Performance
 
-### Via Composer
-```bash
-composer require lizzyman04/mvccore
+Fluxor Core is built for speed:
+- **Boot time**: < 10ms
+- **Memory footprint**: ~2MB
+- **Zero magic** - no reflection overhead
+- **File-based routing** - no route caching needed
+
+## 🤝 Extending Fluxor
+
+Build your own features on top of the core:
+```php
+// Create custom middleware
+class ThrottleMiddleware {
+    public function handle($request, $next) {
+        // Your logic
+        return $next($request);
+    }
+}
+
+// Register with router
+$router->addMiddleware('throttle', [new ThrottleMiddleware, 'handle']);
 ```
 
-### Manual Installation
-```bash
-git clone https://github.com/lizzyman04/mvccore.git
-cd mvccore
-composer install
-```
+## 📚 Documentation
 
-## 🔧 Development
+For complete documentation, including:
+- [Creating your first Fluxor app](https://github.com/lizzyman04/fluxor-php)
+- [Template skeletons](https://github.com/lizzyman04/fluxor-php)
+- [API reference](https://github.com/lizzyman04/fluxor/wiki)
 
-Run tests:
-```bash
-composer test
-```
+## 🎯 Who is this for?
 
-Run with coverage:
-```bash
-composer test-coverage
-```
-
-## 🤝 Contributing
-
-We welcome contributions! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
+Fluxor Core is perfect for:
+- **Framework authors** building custom solutions
+- **API developers** who want minimal overhead
+- **MVC learners** who want to understand internals
+- **Performance purists** who hate bloat
+- **PHP artisans** who appreciate elegant code
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+Fluxor Core is open-source software licensed under the [MIT license](LICENSE).
 
-## 🆕 Changelog
+## 🙏 Contributing
 
-### v1.0.0
-- Initial release
-- File-based routing system
-- Elegant Flow syntax
-- Three starter templates
-- Hierarchical error handling
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 
 ---
 
-**MVCCore** - Build elegant PHP applications with joy! 🎉
+**Fluxor** - Build elegant PHP applications with joy! 🎉

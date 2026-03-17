@@ -1,9 +1,9 @@
 <?php
 
-namespace MVCCore\Contracts;
+namespace Fluxor\Contracts;
 
-use MVCCore\Core\Request;
-use MVCCore\Core\Response;
+use Fluxor\Core\Request;
+use Fluxor\Core\Response;
 
 interface ControllerInterface
 {

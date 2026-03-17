@@ -1,28 +1,59 @@
 <?php
 
-namespace MVCCore\Core;
+namespace Fluxor\Core;
 
 use Throwable;
 use Exception;
 use Dotenv\Dotenv;
-use MVCCore\Exceptions\AppException;
+use Fluxor\Exceptions\AppException;
 
 class App
 {
     private static ?self $instance = null;
     private Router $router;
     private string $basePath;
+    private string $baseUrl;
     private array $config = [];
     private array $services = [];
     private bool $booted = false;
 
-    public function __construct(string $basePath)
+    public function __construct(?string $basePath = null)
     {
-        $this->basePath = rtrim($basePath, '/\\');
-        $this->router = new Router($this->basePath);
+        $this->basePath = $basePath ?? $this->detectBasePath();
+        
+        $this->baseUrl = $this->detectBaseUrl();
+        
+        $this->router = new Router($this->basePath, $this->baseUrl);
         
         self::$instance = $this;
         $this->loadEnvironment();
+    }
+
+    private function detectBasePath(): string
+    {
+        if (strpos(__DIR__, '/vendor/') !== false) {
+            return dirname(__DIR__, 4);
+        }
+        
+        return rtrim(getcwd(), '/\\');
+    }
+
+    private function detectBaseUrl(): string
+    {
+        if (php_sapi_name() === 'cli' || php_sapi_name() === 'phpdbg') {
+            return '';
+        }
+
+        $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+        
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        
+        $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+        $baseDir = dirname($scriptName);
+        
+        $baseUrl = $protocol . '://' . $host . ($baseDir !== '/' ? $baseDir : '');
+        
+        return rtrim($baseUrl, '/') . '/';
     }
 
     public static function getInstance(): ?self
@@ -75,6 +106,7 @@ class App
             'environment' => $_ENV['APP_ENV'] ?? 'production',
             'debug' => ($_ENV['APP_DEBUG'] ?? 'false') === 'true',
             'timezone' => $_ENV['APP_TIMEZONE'] ?? 'UTC',
+            'base_url' => $this->baseUrl,
         ];
 
         $this->config = array_merge($defaultConfig, $this->config);
@@ -160,6 +192,11 @@ class App
     public function getBasePath(): string
     {
         return $this->basePath;
+    }
+
+    public function getBaseUrl(): string
+    {
+        return $this->baseUrl;
     }
 
     public function getEnvironment(): string
