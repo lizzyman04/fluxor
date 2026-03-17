@@ -1,7 +1,8 @@
 <?php
 
-namespace Fluxor\Core;
+namespace Fluxor\Core\Http;
 
+use Fluxor\App;
 use Fluxor\Exceptions\AppException;
 
 class Router

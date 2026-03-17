@@ -1,6 +1,8 @@
 <?php
 
-namespace Fluxor\Core;
+namespace Fluxor\Core\Http;
+
+use Fluxor\Core\View;
 
 class Response
 {

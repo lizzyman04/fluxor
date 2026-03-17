@@ -1,6 +1,6 @@
 <?php
 
-namespace Fluxor\Core;
+namespace Fluxor\Core\Http;
 
 class Request
 {

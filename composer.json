@@ -33,9 +33,12 @@
     "autoload": {
         "psr-4": {
             "Fluxor\\": "src/"
-        }
+        },
+        "files": [
+            "src/Helpers/Functions.php"
+        ]
     },
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "prefer-stable": true,
-    "version": "1.0.0-alpha"
+    "version": "1.0.0"
 }
