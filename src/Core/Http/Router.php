@@ -3,6 +3,7 @@
 namespace Fluxor\Core\Http;
 
 use Fluxor\App;
+use Fluxor\Core\Routing\Flow;
 use Fluxor\Exceptions\AppException;
 
 class Router
@@ -48,29 +49,29 @@ class Router
     {
         foreach ($this->middlewares as $name => $middleware) {
             $result = $middleware($request);
-            
+
             if ($result instanceof Response) {
                 return $result;
             }
-            
+
             if ($result === false) {
                 return Response::error('Middleware blocked request', 403);
             }
         }
-        
+
         return null;
     }
 
     public function dispatch(): void
     {
         $request = $this->createRequest();
-        
+
         $middlewareResponse = $this->runMiddlewares($request);
         if ($middlewareResponse) {
             $this->sendResponse($middlewareResponse);
             return;
         }
-        
+
         $routeInfo = $this->findRoute($request->path);
 
         if ($routeInfo) {
@@ -106,20 +107,19 @@ class Router
         if (!empty($this->config['base_url'])) {
             $parsedBase = parse_url($this->config['base_url']);
             $basePath = $parsedBase['path'] ?? '';
-            
+
             if ($basePath && strpos($url, $basePath) === 0) {
                 $url = substr($url, strlen($basePath));
             }
-        } 
-        elseif (!empty($this->baseUrl)) {
+        } elseif (!empty($this->baseUrl)) {
             $parsedBase = parse_url($this->baseUrl);
             $basePath = $parsedBase['path'] ?? '';
-            
+
             if ($basePath && strpos($url, $basePath) === 0) {
                 $url = substr($url, strlen($basePath));
             }
         }
-        
+
         if (strpos($url, '/public') === 0) {
             $url = substr($url, 7);
         }
@@ -147,27 +147,123 @@ class Router
             $routeFile = $this->findRootRoute($routerPath);
             if ($routeFile) {
                 $routeInfo = ['file' => $routeFile, 'params' => [], 'router_path' => $routerPath];
-                $this->routeCache[$cacheKey] = ['data' => $routeInfo, 'timestamp' => time()];
+                $this->cacheRoute($cacheKey, $routeInfo);
                 return $routeInfo;
             }
+            return null;
         }
 
         $segments = explode('/', trim($url, '/'));
         $currentPath = $routerPath;
         $params = [];
 
-        foreach ($segments as $segment) {
+        $lastIndex = count($segments) - 1;
+
+        for ($i = 0; $i < $lastIndex; $i++) {
+            $segment = $segments[$i];
             $found = $this->findNextSegment($currentPath, $segment, $params);
+
             if (!$found) {
                 return null;
             }
         }
 
-        $routeFile = $currentPath . '/index.php';
+        $lastSegment = $segments[$lastIndex];
+
+        $routeFile = $currentPath . '/' . $lastSegment . '.php';
         if (file_exists($routeFile)) {
-            $routeInfo = ['file' => $routeFile, 'params' => $params, 'router_path' => $currentPath];
-            $this->routeCache[$cacheKey] = ['data' => $routeInfo, 'timestamp' => time()];
+            $routeInfo = [
+                'file' => $routeFile,
+                'params' => $params,
+                'router_path' => $currentPath
+            ];
+            $this->cacheRoute($cacheKey, $routeInfo);
             return $routeInfo;
+        }
+
+        $dirPath = $currentPath . '/' . $lastSegment;
+        if (is_dir($dirPath)) {
+            $indexFile = $dirPath . '/index.php';
+            if (file_exists($indexFile)) {
+                $routeInfo = [
+                    'file' => $indexFile,
+                    'params' => $params,
+                    'router_path' => $dirPath
+                ];
+                $this->cacheRoute($cacheKey, $routeInfo);
+                return $routeInfo;
+            }
+        }
+
+        $dynamicFile = $this->findDynamicFile($currentPath, $lastSegment, $params);
+        if ($dynamicFile) {
+            $this->cacheRoute($cacheKey, $dynamicFile);
+            return $dynamicFile;
+        }
+
+        $dynamicDir = $this->findDynamicDirectory($currentPath, $lastSegment, $params);
+        if ($dynamicDir) {
+            $this->cacheRoute($cacheKey, $dynamicDir);
+            return $dynamicDir;
+        }
+
+        return null;
+    }
+
+    private function findDynamicFile(string $currentPath, string $segment, array &$params): ?array
+    {
+        if (!is_dir($currentPath)) {
+            return null;
+        }
+
+        $items = scandir($currentPath);
+
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+
+            $fullPath = $currentPath . '/' . $item;
+
+            if (is_file($fullPath) && preg_match('/^\[([a-zA-Z_][a-zA-Z0-9_]*)\]\.php$/', $item, $matches)) {
+                $params[$matches[1]] = $segment;
+                return [
+                    'file' => $fullPath,
+                    'params' => $params,
+                    'router_path' => $currentPath
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    private function findDynamicDirectory(string $currentPath, string $segment, array &$params): ?array
+    {
+        if (!is_dir($currentPath)) {
+            return null;
+        }
+
+        $items = scandir($currentPath);
+
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+
+            $fullPath = $currentPath . '/' . $item;
+
+            if (is_dir($fullPath) && preg_match('/^\[([a-zA-Z_][a-zA-Z0-9_]*)\]$/', $item, $matches)) {
+                $indexFile = $fullPath . '/index.php';
+                if (file_exists($indexFile)) {
+                    $params[$matches[1]] = $segment;
+                    return [
+                        'file' => $indexFile,
+                        'params' => $params,
+                        'router_path' => $fullPath
+                    ];
+                }
+            }
         }
 
         return null;
@@ -175,7 +271,7 @@ class Router
 
     private function findRootRoute(string $routerPath): ?string
     {
-        $filesToTry = ['/page.php', '/index.php'];
+        $filesToTry = ['/index.php'];
 
         foreach ($filesToTry as $file) {
             $fullPath = $routerPath . $file;
@@ -187,37 +283,47 @@ class Router
         return null;
     }
 
-    private function findNextSegment(string $currentPath, string $segment, array &$params): bool
+    private function findNextSegment(string &$currentPath, string $segment, array &$params): bool
     {
-        if (!is_dir($currentPath))
+        if (!is_dir($currentPath)) {
             return false;
+        }
 
         $items = scandir($currentPath);
 
         foreach ($items as $item) {
-            if ($item === '.' || $item === '..')
+            if ($item === '.' || $item === '..') {
                 continue;
+            }
 
             $fullPath = $currentPath . '/' . $item;
 
             if (is_dir($fullPath) && $item === $segment) {
+                $currentPath = $fullPath;
                 return true;
             }
 
             if (is_dir($fullPath) && preg_match('/^\[([a-zA-Z_][a-zA-Z0-9_]*)\]$/', $item, $matches)) {
                 $params[$matches[1]] = $segment;
+                $currentPath = $fullPath;
                 return true;
             }
 
             if (is_dir($fullPath) && preg_match('/^\(([a-zA-Z_][a-zA-Z0-9_]*)\)$/', $item, $matches)) {
-                $groupSegmentPath = $fullPath . '/' . $segment;
-                if (is_dir($groupSegmentPath)) {
-                    return true;
-                }
+                $currentPath = $fullPath;
+                return true;
             }
         }
 
         return false;
+    }
+
+    private function cacheRoute(string $key, array $routeInfo): void
+    {
+        $this->routeCache[$key] = [
+            'data' => $routeInfo,
+            'timestamp' => time()
+        ];
     }
 
     private function executeRoute(array $routeInfo, Request $request): void
@@ -226,14 +332,27 @@ class Router
         $request->setRouterPath($routeInfo['router_path']);
 
         try {
-            $handler = include $routeInfo['file'];
+            $result = include $routeInfo['file'];
 
-            if (is_callable($handler)) {
-                $response = $handler($request);
-                $this->sendResponse($response);
-            } else {
-                throw new AppException('Route file must return a callable');
+            if ($result === 1 || $result === null) {
+                $flowResponse = Flow::execute($request);
+                if ($flowResponse !== null) {
+                    $this->sendResponse($flowResponse);
+                    return;
+                }
+                $this->handleNotFound($request);
+                return;
             }
+
+            $response = match (true) {
+                is_callable($result) => $result($request),
+                $result instanceof Response => $result,
+                is_array($result) || is_object($result) => Response::json($result),
+                is_string($result) => Response::html($result),
+                default => throw new AppException('Route must return a callable, Response, or convertible value')
+            };
+
+            $this->sendResponse($response);
 
         } catch (\Throwable $e) {
             $this->handleError($e, $request, $routeInfo['router_path']);
@@ -248,8 +367,6 @@ class Router
             Response::json($response)->send();
         } elseif (is_string($response)) {
             echo $response;
-        } elseif ($response instanceof View) {
-            echo $response->render('');
         }
     }
 
@@ -271,7 +388,7 @@ class Router
         ], 404)->send();
     }
 
-    private function handleError(\Throwable $e, Request $request, string $routerPath)
+    private function handleError(\Throwable $e, Request $request, string $routerPath): void
     {
         $statusCode = $e instanceof AppException ? $e->getCode() : 500;
         $statusCode = $statusCode ?: 500;
@@ -288,7 +405,6 @@ class Router
             return;
         }
 
-        // Fallback para erro genérico
         if (App::make()->isDevelopment()) {
             $response = [
                 'error' => get_class($e),

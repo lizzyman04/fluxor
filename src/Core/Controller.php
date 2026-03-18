@@ -2,6 +2,8 @@
 
 namespace Fluxor\Core;
 
+use Fluxor\Core\Http\Request;
+use Fluxor\Core\Http\Response;
 use Fluxor\Contracts\ControllerInterface;
 
 abstract class Controller implements ControllerInterface

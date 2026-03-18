@@ -1,6 +1,6 @@
 {
     "name": "lizzyman04/fluxor",
-    "description": "Fluxor Core PHP Framework - Lightweight MVC with file-based routing",
+    "description": "A lightweight PHP MVC engine with file-based routing and elegant Flow syntax.",
     "type": "library",
     "keywords": [
         "mvc",
@@ -11,7 +11,8 @@
         "file-based-routing",
         "flow",
         "lightweight",
-        "api"
+        "api",
+        "micro-framework"
     ],
     "homepage": "https://github.com/lizzyman04/fluxor",
     "license": "MIT",
@@ -35,6 +36,7 @@
             "Fluxor\\": "src/"
         },
         "files": [
+            "src/Fluxor.php",
             "src/Helpers/Functions.php"
         ]
     },

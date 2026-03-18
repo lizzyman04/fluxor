@@ -3,6 +3,7 @@
 namespace Fluxor\Core;
 
 use Fluxor\Exceptions\AppException;
+use Fluxor\Core\App;
 
 class View
 {
@@ -13,14 +14,20 @@ class View
     private static string $currentSection = '';
     private static bool $sectionStarted = false;
     private static array $extendedLayouts = [];
+    private static ?App $app = null;
+    private static array $currentData = [];
+
+    public static function init(?App $app = null): void
+    {
+        self::$app = $app ?? App::getInstance();
+    }
 
     public static function setViewsPath(string $path): void
     {
         if (!is_dir($path)) {
             throw new AppException("Views path does not exist: {$path}");
         }
-
-        self::$viewsPath = rtrim($path, '/\\');
+        self::$viewsPath = rtrim(realpath($path), '/\\');
     }
 
     public static function getViewsPath(): string
@@ -36,8 +43,7 @@ class View
     public static function exists(string $view): bool
     {
         try {
-            $viewFile = self::resolveViewPath($view);
-            return file_exists($viewFile);
+            return file_exists(self::resolveViewPath($view));
         } catch (AppException) {
             return false;
         }
@@ -45,53 +51,44 @@ class View
 
     public static function render(string $view, array $data = []): string
     {
-        $viewFile = self::resolveViewPath($view);
-
-        if (!file_exists($viewFile)) {
-            throw AppException::viewNotFound($view);
-        }
-
-        $allData = array_merge(self::$shared, $data);
-
-        extract($allData, EXTR_SKIP);
-
-        ob_start();
-
         try {
-            include $viewFile;
+            $viewFile = self::resolveViewPath($view);
+            $allData = array_merge(self::$shared, $data, self::$currentData);
+
+            $previousData = self::$currentData;
+            self::$currentData = $allData;
+
+            extract($allData, EXTR_SKIP);
+
+            ob_start();
+            try {
+                include $viewFile;
+            } catch (\Throwable $e) {
+                ob_end_clean();
+                self::$currentData = $previousData;
+                throw new AppException("View rendering failed: {$e->getMessage()} in {$view}", 0, $e);
+            }
+            $content = ob_get_clean();
+
+            while (!empty(self::$extendedLayouts)) {
+                $layout = array_pop(self::$extendedLayouts);
+                $content = self::render($layout, $allData);
+                self::$sections['content'] = $content;
+            }
+
+            self::$currentData = $previousData;
+            return $content;
+
         } catch (\Throwable $e) {
-            ob_end_clean();
-            throw new AppException("View rendering failed: " . $e->getMessage(), 0, $e);
+            if (self::isDebugMode()) {
+                throw $e;
+            }
+            error_log("[Fluxor View Error] {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}");
+            return '<h1>View Error</h1><p>Something went wrong rendering the view.</p>';
         }
-
-        $content = ob_get_clean();
-
-        if (!empty(self::$extendedLayouts)) {
-            $layout = array_pop(self::$extendedLayouts);
-            $content = self::renderWithLayout($layout, $content, $allData);
-        }
-
-        return $content;
     }
 
-    private static function renderWithLayout(string $layout, string $content, array $data): string
-    {
-        $originalSections = self::$sections;
-        self::$sections['content'] = $content;
-
-        $layoutContent = self::render($layout, $data);
-
-        self::$sections = $originalSections;
-
-        return $layoutContent;
-    }
-
-    public static function renderEcho(string $view, array $data = []): void
-    {
-        echo self::render($view, $data);
-    }
-
-    public static function section(string $name, string $content = null): void
+    public static function section(string $name, ?string $content = null): void
     {
         if ($content !== null) {
             self::$sections[$name] = $content;
@@ -125,20 +122,15 @@ class View
 
     public static function push(string $stack, string $content): void
     {
-        if (!isset(self::$stacks[$stack])) {
-            self::$stacks[$stack] = [];
-        }
-
         self::$stacks[$stack][] = $content;
     }
 
     public static function stack(string $stack, string $glue = ''): string
     {
-        if (!isset(self::$stacks[$stack])) {
+        if (empty(self::$stacks[$stack])) {
             return '';
         }
-
-        return implode($glue, array_reverse(self::$stacks[$stack]));
+        return implode($glue, self::$stacks[$stack]);
     }
 
     public static function extend(string $layout): void
@@ -148,7 +140,7 @@ class View
 
     public static function include(string $view, array $data = []): void
     {
-        echo self::render($view, $data);
+        echo self::render($view, array_merge(self::$currentData, $data));
     }
 
     public static function escape(string $value): string
@@ -161,69 +153,75 @@ class View
         return self::escape($value);
     }
 
-    public static function safe(string $value): string
+    public static function raw(string $value): string
     {
         return $value;
     }
 
     public static function csrfField(): string
     {
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            session_start();
+        }
         $token = $_SESSION['csrf_token'] ?? bin2hex(random_bytes(32));
         $_SESSION['csrf_token'] = $token;
-
-        return '<input type="hidden" name="csrf_token" value="' . self::escape($token) . '">';
+        return '<input type="hidden" name="_token" value="' . self::escape($token) . '">';
     }
 
     public static function method(string $method): string
     {
-        $validMethods = ['PUT', 'PATCH', 'DELETE'];
         $method = strtoupper($method);
-
-        if (in_array($method, $validMethods)) {
-            return '<input type="hidden" name="_method" value="' . self::escape($method) . '">';
+        if (!in_array($method, ['PUT', 'PATCH', 'DELETE'], true)) {
+            return '';
         }
-
-        return '';
+        return '<input type="hidden" name="_method" value="' . self::escape($method) . '">';
     }
 
     public static function asset(string $path): string
     {
-        $baseUrl = rtrim($_ENV['APP_URL'] ?? '', '/');
-        return $baseUrl . '/assets/' . ltrim($path, '/');
+        return self::url('assets/' . ltrim($path, '/'));
     }
 
     public static function url(string $path = ''): string
     {
-        $baseUrl = rtrim($_ENV['APP_URL'] ?? '', '/');
-        return $baseUrl . '/' . ltrim($path, '/');
-    }
-
-    public static function route(string $name, array $params = []): string
-    {
-        $path = $name;
-        foreach ($params as $key => $value) {
-            $path = str_replace("{{$key}}", $value, $path);
+        $app = self::$app ?? App::getInstance();
+        if (!$app) {
+            return '/' . ltrim($path, '/');
         }
-        return self::url($path);
+        return rtrim($app->getBaseUrl(), '/') . '/' . ltrim($path, '/');
     }
 
     private static function resolveViewPath(string $view): string
     {
-        $view = preg_replace('/\.php$/', '', $view);
+        if (empty(self::$viewsPath)) {
+            throw new AppException("Views path not set.");
+        }
 
-        $possiblePaths = [
-            self::$viewsPath . '/' . $view . '.php',
+        $view = strip_tags($view);
+        $view = str_replace(['\\', '.'], '/', $view);
+        $view = preg_replace('/\.php$|\.html$/', '', $view);
+
+        $paths = [
             self::$viewsPath . '/' . $view,
+            self::$viewsPath . '/' . $view . '.php',
+            self::$viewsPath . '/' . $view . '.html',
             self::$viewsPath . '/' . $view . '/index.php',
+            self::$viewsPath . '/' . $view . '/index.html',
         ];
 
-        foreach ($possiblePaths as $path) {
+        foreach ($paths as $path) {
             if (file_exists($path)) {
                 return $path;
             }
         }
 
         throw AppException::viewNotFound($view);
+    }
+
+    private static function isDebugMode(): bool
+    {
+        $app = self::$app ?? App::getInstance();
+        return $app ? $app->isDevelopment() : true;
     }
 
     public static function clear(): void
@@ -233,6 +231,7 @@ class View
         self::$extendedLayouts = [];
         self::$currentSection = '';
         self::$sectionStarted = false;
+        self::$currentData = [];
     }
 
     public static function getSharedData(): array
@@ -248,5 +247,10 @@ class View
     public static function getStacks(): array
     {
         return self::$stacks;
+    }
+
+    protected static function getData(string $key, $default = null)
+    {
+        return self::$currentData[$key] ?? $default;
     }
 }

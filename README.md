@@ -117,12 +117,14 @@ $router->addMiddleware('auth', function($request) {
 
 ### Request & Response
 ```php
+use Fluxor\Response;
+
 $id = $request->param('id');
 $email = $request->input('email');
 $token = $request->bearerToken();
 
-return Fluxor\Response::json(['user' => $user]);
-return Fluxor\Response::view('profile', ['user' => $user]);
+return Response::json(['user' => $user]);
+return Response::view('profile', ['user' => $user]);
 ```
 
 ### Flow Syntax
@@ -132,14 +134,13 @@ use Fluxor\Flow;
 Flow::GET()->do(fn($req) => 'Hello World');
 Flow::POST()->to(UserController::class, 'store');
 Flow::use(fn($req) => $req->isAuthenticated() ? null : redirect('/login'));
-
-return Flow::execute($req);
 ```
 
 ### View System
 ```php
 // In controller
-return Fluxor\Response::view('home', ['title' => 'Home']);
+use Fluxor\Response;
+return Response::view('home', ['title' => 'Home']);
 
 // In view (home.php)
 $this->extend('layouts/main');

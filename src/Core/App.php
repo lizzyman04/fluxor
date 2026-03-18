@@ -21,14 +21,18 @@ class App
     private Application $app;
     private ?ExceptionHandler $exceptionHandler = null;
 
-    public function __construct(?string $basePath = null)
+    public function __construct(?string $basePath = null, bool $forceNew = false)
     {
+        if (self::$instance && !$forceNew) {
+            throw new AppException('App already initialized. Use App::getInstance()');
+        }
+
         $basePath = Environment::detectBasePath($basePath);
         $baseUrl = Environment::detectBaseUrl();
-        
+
         $this->app = new Application($basePath, $baseUrl);
         $this->app->bootstrap();
-        
+
         self::$instance = $this;
     }
 
@@ -40,11 +44,11 @@ class App
     public static function make(string $service = null)
     {
         $instance = self::getInstance();
-        
+
         if (!$instance) {
             throw new AppException('Application instance not initialized');
         }
-        
+
         return $service ? $instance->getService($service) : $instance;
     }
 
@@ -58,11 +62,11 @@ class App
         foreach ($config as $key => $value) {
             $this->app->getConfig()->set($key, $value);
         }
-        
+
         if ($this->app->getRouter()) {
             $this->app->getRouter()->setConfig($this->app->getConfig()->all());
         }
-        
+
         return $this;
     }
 

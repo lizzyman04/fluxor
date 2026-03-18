@@ -2,8 +2,7 @@
 
 namespace Fluxor\Contracts;
 
-use Fluxor\Core\Request;
-use Fluxor\Core\Response;
+use Fluxor\Core\Http\Request;
 
 interface ControllerInterface
 {
