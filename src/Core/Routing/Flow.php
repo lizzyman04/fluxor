@@ -24,6 +24,7 @@ class Flow
     private static ?string $currentName = null;
     private static bool $executed = false;
     private static array $patternCache = [];
+    private static ?string $viewsPath = null;
 
     private const ERROR_TYPE_MAP = [
         'bad-request' => HttpStatusCode::BAD_REQUEST,
@@ -41,6 +42,11 @@ class Flow
         'validation-error' => HttpStatusCode::UNPROCESSABLE_ENTITY,
         'csrf-error' => 419,
     ];
+
+    public static function setViewsPath(string $path): void
+    {
+        self::$viewsPath = rtrim($path, '/\\');
+    }
 
     public static function __callStatic($method, $args): self
     {
@@ -188,26 +194,13 @@ class Flow
                 continue;
             }
 
-            if (!$route['pattern']) {
-                continue;
-            }
-
-            $cacheKey = $route['pattern'] . '|' . $path;
-
-            if (isset(self::$patternCache[$cacheKey])) {
-                if (self::$patternCache[$cacheKey]['matches']) {
-                    $request->setParams(self::$patternCache[$cacheKey]['params']);
-                    return $route['handler'];
-                }
+            if (!isset($route['pattern']) || !$route['pattern']) {
                 continue;
             }
 
             if (self::matchesPattern($route['pattern'], $path, $params)) {
-                self::$patternCache[$cacheKey] = ['matches' => true, 'params' => $params];
                 $request->setParams($params);
                 return $route['handler'];
-            } else {
-                self::$patternCache[$cacheKey] = ['matches' => false, 'params' => []];
             }
         }
 
@@ -220,18 +213,20 @@ class Flow
 
     private static function matchesPattern(string $pattern, string $path, ?array &$params = []): bool
     {
-        $pattern = preg_replace('/\//', '\/', $pattern);
-        $pattern = preg_replace('/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/', '(?P<$1>[^\/]+)', $pattern);
-        $pattern = preg_replace('/\{([a-zA-Z_][a-zA-Z0-9_]*)\?\}/', '(?P<$1>[^\/]*)', $pattern);
-        $pattern = '/^' . $pattern . '$/';
+        $regex = preg_quote($pattern, '#');
 
-        if (preg_match($pattern, $path, $matches)) {
+        $regex = preg_replace_callback('/\\\\\[([a-zA-Z_][a-zA-Z0-9_]*)\\\\\]/', function ($matches) {
+            return '(?P<' . $matches[1] . '>[^/]+)';
+        }, $regex);
+
+        $regex = preg_replace_callback('/\\\\\{([a-zA-Z_][a-zA-Z0-9_]*)\\\\\}/', function ($matches) {
+            return '(?P<' . $matches[1] . '>[^/]+)';
+        }, $regex);
+
+        $regex = '#^' . $regex . '$#';
+
+        if (preg_match($regex, $path, $matches)) {
             $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
-            foreach ($params as $key => $value) {
-                if ($value === '') {
-                    unset($params[$key]);
-                }
-            }
             return true;
         }
 
@@ -245,31 +240,47 @@ class Flow
         try {
             $app = App::make();
             $routerPath = $app->getConfig()['router_path'] ?? $app->getBasePath() . '/app/router';
+            if (self::$viewsPath === null) {
+                self::$viewsPath = $app->getConfig()['views_path'] ?? $app->getBasePath() . '/src/Views';
+            }
         } catch (\Throwable $e) {
             $routerPath = getcwd() . '/app/router';
         }
 
-        $routerPath = rtrim($routerPath, '/\\');
+        $routerPath = rtrim(str_replace('\\', '/', $routerPath), '/');
 
         foreach ($trace as $frame) {
             if (!isset($frame['file']))
                 continue;
 
-            $file = $frame['file'];
+            $file = str_replace('\\', '/', $frame['file']);
             if (strpos($file, $routerPath) !== 0)
                 continue;
 
-            $relativePath = dirname(substr($file, strlen($routerPath) + 1));
+            $relativePath = substr($file, strlen($routerPath) + 1);
+            $pathParts = explode('/', $relativePath);
+            $fileName = array_pop($pathParts);
+            $fileName = basename($fileName, '.php');
 
-            if ($relativePath === '.' || $relativePath === '/') {
-                $filename = basename($file, '.php');
-                return ($filename === 'index') ? '/' : '/' . $filename;
+            $filteredParts = array_filter($pathParts, function ($part) {
+                return !preg_match('/^\([^)]+\)$/', $part);
+            });
+
+            if (empty($filteredParts)) {
+                return ($fileName === 'index') ? '/' : '/' . $fileName;
             }
 
-            $pattern = '/' . str_replace(['[', ']', '(', ')'], ['{', '}', '', ''], $relativePath);
-            $filename = basename($file, '.php');
+            $pattern = '/' . implode('/', array_map(function ($part) {
+                return preg_replace_callback('/\[([a-zA-Z_][a-zA-Z0-9_]*)\]/', function ($matches) {
+                    return '{' . $matches[1] . '}';
+                }, $part);
+            }, $filteredParts));
 
-            return ($filename !== 'index') ? $pattern . '/' . $filename : $pattern;
+            if ($fileName !== 'index') {
+                $pattern .= '/' . $fileName;
+            }
+
+            return $pattern;
         }
 
         return '/';
@@ -282,19 +293,15 @@ class Flow
             'exception' => $e,
         ]);
 
-        if ($response)
+        if ($response) {
             return $response;
-        if ($request->wantsJson())
-            return Response::error('Not Found', 404);
-
-        try {
-            return Response::view('errors/404', ['path' => $request->path], 404);
-        } catch (\Throwable $viewError) {
-            http_response_code(404);
-            echo '<!DOCTYPE html><html><head><title>404</title><style>body{font-family:sans-serif;text-align:center;padding:50px}</style></head><body>';
-            echo '<h1>404</h1><p>Page not found</p></body></html>';
-            exit;
         }
+
+        if ($request->wantsJson()) {
+            return Response::error('Not Found', 404);
+        }
+
+        return self::renderErrorPage(404, 'Not Found');
     }
 
     private static function handleHttpException(Request $request, HttpException $e)
@@ -307,22 +314,15 @@ class Flow
             'status_code' => $statusCode,
         ]);
 
-        if ($response)
+        if ($response) {
             return $response;
-        if ($request->wantsJson())
-            return Response::error($e->getMessage(), $statusCode);
-
-        try {
-            return Response::view("errors/{$statusCode}", [
-                'exception' => $e,
-                'message' => $e->getMessage(),
-            ], $statusCode);
-        } catch (\Throwable $viewError) {
-            http_response_code($statusCode);
-            echo '<!DOCTYPE html><html><head><title>' . $statusCode . '</title><style>body{font-family:sans-serif;text-align:center;padding:50px}</style></head><body>';
-            echo '<h1>' . $statusCode . '</h1><p>' . htmlspecialchars($e->getMessage()) . '</p></body></html>';
-            exit;
         }
+
+        if ($request->wantsJson()) {
+            return Response::error($e->getMessage(), $statusCode);
+        }
+
+        return self::renderErrorPage($statusCode, $e->getMessage());
     }
 
     private static function handleError(Request $request, \Throwable $e)
@@ -347,10 +347,48 @@ class Flow
             ], $statusCode);
         }
 
-        return Response::error(
-            HttpStatusCode::message($statusCode),
-            $statusCode
-        );
+        return self::renderErrorPage($statusCode, HttpStatusCode::message($statusCode));
+    }
+
+    private static function renderErrorPage(int $statusCode, string $message): Response
+    {
+        if (self::$viewsPath === null) {
+            try {
+                $app = App::make();
+                self::$viewsPath = $app->getConfig()['views_path'] ?? $app->getBasePath() . '/src/Views';
+            } catch (\Throwable $e) {
+                self::$viewsPath = getcwd() . '/src/Views';
+            }
+        }
+
+        $userView = self::$viewsPath . "/errors/{$statusCode}.php";
+        if (file_exists($userView)) {
+            ob_start();
+            extract(['statusCode' => $statusCode, 'message' => $message]);
+            include $userView;
+            $content = ob_get_clean();
+            return Response::html($content, $statusCode);
+        }
+
+        $userCommonView = self::$viewsPath . "/errors/common.php";
+        if (file_exists($userCommonView)) {
+            ob_start();
+            extract(['statusCode' => $statusCode, 'message' => $message]);
+            include $userCommonView;
+            $content = ob_get_clean();
+            return Response::html($content, $statusCode);
+        }
+
+        $vendorView = dirname(__DIR__, 2) . '/Resources/views/errors/common.php';
+        if (file_exists($vendorView)) {
+            ob_start();
+            extract(['statusCode' => $statusCode, 'message' => $message]);
+            include $vendorView;
+            $content = ob_get_clean();
+            return Response::html($content, $statusCode);
+        }
+
+        return Response::text("{$statusCode}\n" . htmlspecialchars($message), $statusCode);
     }
 
     private static function findErrorHandler(string $type, Request $request, array $context = [])
@@ -459,7 +497,7 @@ class Flow
     private function validateMethod(): void
     {
         if (!self::$currentMethod) {
-            throw new AppException('No method specified. Use Flow::GET(), Flow::POST(), etc.');
+            throw new AppException('No method specified.');
         }
     }
 
