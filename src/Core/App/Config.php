@@ -47,9 +47,9 @@ class Config
             'router_path' => $basePath . '/app/router',
             'views_path' => $basePath . '/src/Views',
             'storage_path' => $basePath . '/storage',
-            'environment' => $_ENV['APP_ENV'] ?? 'production',
-            'debug' => ($_ENV['APP_DEBUG'] ?? 'false') === 'true',
-            'timezone' => $_ENV['APP_TIMEZONE'] ?? 'UTC',
+            'environment' => Environment::get('APP_ENV', 'production'),
+            'debug' => Environment::get('APP_DEBUG', false),
+            'timezone' => Environment::get('APP_TIMEZONE', 'UTC'),
             'base_url' => $baseUrl,
         ]);
     }

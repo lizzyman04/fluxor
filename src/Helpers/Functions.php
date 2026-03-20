@@ -1,11 +1,10 @@
 <?php
 /**
  * Fluxor - Global Helper Functions
- * 
- * Pure functions without namespace.
  */
 
 use Fluxor\Core\App;
+use Fluxor\Core\App\Environment;
 use Fluxor\Helpers\HttpStatusCode;
 
 if (!function_exists('app')) {
@@ -54,9 +53,30 @@ if (!function_exists('config')) {
 }
 
 if (!function_exists('env')) {
+    /**
+     * Get an environment variable
+     * 
+     * @param string $key
+     * @param mixed $default
+     * @return mixed
+     */
     function env(string $key, $default = null)
     {
-        return $_ENV[$key] ?? $_SERVER[$key] ?? $default;
+        return Environment::get($key, $default);
+    }
+}
+
+if (!function_exists('env_required')) {
+    /**
+     * Get a required environment variable (throws exception if missing)
+     * 
+     * @param string $key
+     * @return mixed
+     * @throws \RuntimeException
+     */
+    function env_required(string $key)
+    {
+        return Environment::required($key);
     }
 }
 

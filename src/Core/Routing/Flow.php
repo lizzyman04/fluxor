@@ -20,7 +20,6 @@ class Flow
     private static array $handlers = [];
     private static array $middlewares = [];
     private static ?string $currentMethod = null;
-    private static ?string $currentPattern = null;
     private static ?string $currentName = null;
     private static bool $executed = false;
     private static array $patternCache = [];
@@ -60,12 +59,6 @@ class Flow
         return $this;
     }
 
-    public function pattern(string $pattern): self
-    {
-        self::$currentPattern = $pattern;
-        return $this;
-    }
-
     public function name(string $name): self
     {
         self::$currentName = $name;
@@ -76,7 +69,7 @@ class Flow
     {
         $this->validateMethod();
 
-        $pattern = self::$currentPattern ?? $this->detectPatternFromFile();
+        $pattern = $this->detectPatternFromFile();
         $key = self::buildKey(self::$currentMethod, $pattern);
 
         self::$handlers[$key] = [
@@ -219,10 +212,6 @@ class Flow
             return '(?P<' . $matches[1] . '>[^/]+)';
         }, $regex);
 
-        $regex = preg_replace_callback('/\\\\\{([a-zA-Z_][a-zA-Z0-9_]*)\\\\\}/', function ($matches) {
-            return '(?P<' . $matches[1] . '>[^/]+)';
-        }, $regex);
-
         $regex = '#^' . $regex . '$#';
 
         if (preg_match($regex, $path, $matches)) {
@@ -250,12 +239,14 @@ class Flow
         $routerPath = rtrim(str_replace('\\', '/', $routerPath), '/');
 
         foreach ($trace as $frame) {
-            if (!isset($frame['file']))
+            if (!isset($frame['file'])) {
                 continue;
+            }
 
             $file = str_replace('\\', '/', $frame['file']);
-            if (strpos($file, $routerPath) !== 0)
+            if (strpos($file, $routerPath) !== 0) {
                 continue;
+            }
 
             $relativePath = substr($file, strlen($routerPath) + 1);
             $pathParts = explode('/', $relativePath);
@@ -467,10 +458,7 @@ class Flow
 
                 foreach ($params as $key => $value) {
                     $pattern = str_replace('{' . $key . '}', $value, $pattern);
-                    $pattern = str_replace('{' . $key . '?}', $value, $pattern);
                 }
-
-                $pattern = preg_replace('/\{[^}]+\?\}/', '', $pattern);
 
                 return App::getInstance()->getBaseUrl() . ltrim($pattern, '/');
             }
@@ -497,14 +485,13 @@ class Flow
     private function validateMethod(): void
     {
         if (!self::$currentMethod) {
-            throw new AppException('No method specified.');
+            throw new AppException('No method specified. Use Flow::GET(), Flow::POST(), etc.');
         }
     }
 
     private function resetState(): void
     {
         self::$currentMethod = null;
-        self::$currentPattern = null;
         self::$currentName = null;
     }
 
@@ -514,7 +501,6 @@ class Flow
         self::$middlewares = [];
         self::$patternCache = [];
         self::$currentMethod = null;
-        self::$currentPattern = null;
         self::$currentName = null;
         self::$executed = false;
     }
@@ -537,27 +523,5 @@ class Flow
             }
         }
         return null;
-    }
-
-    public static function group(string $prefix, array $middleware, callable $callback): void
-    {
-        $oldHandlers = self::$handlers;
-        $oldMiddleware = self::$middlewares;
-
-        foreach ($middleware as $mw) {
-            self::$middlewares[] = $mw;
-        }
-
-        $callback();
-
-        $newHandlers = array_diff_key(self::$handlers, $oldHandlers);
-        foreach ($newHandlers as $key => $handler) {
-            if ($handler['pattern']) {
-                $handler['pattern'] = $prefix . $handler['pattern'];
-            }
-            self::$handlers[$key] = $handler;
-        }
-
-        self::$middlewares = $oldMiddleware;
     }
 }

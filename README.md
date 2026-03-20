@@ -13,7 +13,7 @@ Fluxor Core is the **engine behind the Fluxor PHP framework** - a minimal, elega
 
 Unlike monolithic frameworks, Fluxor Core gives you:
 - 🚀 **Blazing fast performance** (boot under 10ms)
-- 📦 **Zero dependencies** beyond `phpdotenv`
+- 📦 **Zero dependencies** - just pure PHP!
 - 🔍 **Transparent code** - no magic, you can read everything
 - 🎯 **File-based routing** inspired by Next.js
 - 💎 **Beautiful Flow syntax** for route definitions
@@ -22,7 +22,7 @@ Unlike monolithic frameworks, Fluxor Core gives you:
 
 | Feature | Description |
 |---------|-------------|
-| **🎯 File-based Routing** | Routes defined by folder structure - no route files needed |
+| **🎯 File-based Routing** | Routes defined by folder structure - like Next.js |
 | **💎 Flow Syntax** | Ultra-clean, chainable route definitions |
 | **🔄 MVC Architecture** | Clean separation with Controllers and Views |
 | **🎨 View System** | Layouts, sections, stacks, and partials |
@@ -30,6 +30,7 @@ Unlike monolithic frameworks, Fluxor Core gives you:
 | **🚦 Middleware** | Flexible request filtering (global + per-route) |
 | **🎭 Error Handling** | Hierarchical error pages (404, 500, etc.) |
 | **🔧 Zero Config** | Auto-detects base path and URL |
+| **🌍 Environment Support** | Built-in .env file parser with type casting |
 
 ## 🚀 Quick Start
 
@@ -65,9 +66,15 @@ fluxor/
 │   │   ├── Http/                # HTTP layer
 │   │   │   ├── Request.php
 │   │   │   ├── Response.php
-│   │   │   └── Router.php
+│   │   │   ├── Router.php
+│   │   │   └── Router/          # Router components
+│   │   │       ├── Dispatcher.php
+│   │   │       ├── ErrorHandler.php
+│   │   │       └── Matcher.php
 │   │   ├── Routing/             # Flow syntax
 │   │   │   └── Flow.php
+│   │   ├── Resources/           # Built-in resources
+│   │   │   └── views/errors/    # Error templates
 │   │   └── View/                # View components
 │   │       ├── ViewFactory.php
 │   │       └── Compilers/
@@ -80,7 +87,7 @@ fluxor/
 │   │   ├── NotFoundException.php
 │   │   └── ValidationException.php
 │   ├── Helpers/
-│   │   ├── Functions.php
+│   │   ├── Functions.php        # Global helper functions
 │   │   ├── HttpStatusCode.php
 │   │   └── Str.php
 │   └── Fluxor.php                # Re-exports for clean API
@@ -93,7 +100,9 @@ All core classes are automatically re-exported for cleaner code:
 ```php
 use Fluxor\App;
 use Fluxor\Request;
+use Fluxor\Response;
 use Fluxor\Flow;
+use Fluxor\View;
 ```
 
 ## 💡 Core Concepts
@@ -103,6 +112,18 @@ use Fluxor\Flow;
 $app = new Fluxor\App();
 $basePath = $app->getBasePath();  // Auto-detected!
 $baseUrl = $app->getBaseUrl();    // Auto-detected!
+```
+
+### File-based Routing
+```php
+// app/router/users/[id].php
+use Fluxor\Flow;
+use Fluxor\Response;
+
+Flow::GET()->do(function($req) {
+    $userId = $req->param('id');
+    return Response::success(['user' => $userId]);
+});
 ```
 
 ### Router with Middleware
@@ -131,43 +152,68 @@ return Response::view('profile', ['user' => $user]);
 ```php
 use Fluxor\Flow;
 
+// Simple route
 Flow::GET()->do(fn($req) => 'Hello World');
+
+// Controller binding
 Flow::POST()->to(UserController::class, 'store');
+
+// Middleware
 Flow::use(fn($req) => $req->isAuthenticated() ? null : redirect('/login'));
 ```
 
 ### View System
 ```php
 // In controller
-use Fluxor\Response;
 return Response::view('home', ['title' => 'Home']);
 
 // In view (home.php)
-$this->extend('layouts/main');
-$this->section('content');
-    <h1><?= $this->e($title) ?></h1>
-$this->endSection();
+View::extend('layouts/main');
+View::section('content');
+    <h1><?= View::e($title) ?></h1>
+View::endSection();
+```
+
+### Global Helpers
+```php
+// Environment variables
+$debug = env('APP_DEBUG', false);
+$dbName = env('DB_NAME', 'database');
+
+// Path helpers
+$root = base_path();
+$url = base_url('api/users');
+$asset = asset('css/app.css');
+
+// HTTP helpers
+abort(404, 'Not Found');
+return redirect('/dashboard');
+
+// Debug helpers
+dump($user);
+dd($data);  // Dump and die
 ```
 
 ## 📊 Performance
 
 - **Boot time**: < 10ms
 - **Memory footprint**: ~2MB
+- **Zero dependencies** - no external packages required
 - **Zero magic** - no reflection overhead
 - **File-based routing** - no route caching needed
 
 ## 📚 Documentation
 
-For complete documentation, tutorials, and examples, visit:
-👉 [**Fluxor PHP Framework**](https://github.com/lizzyman04/fluxor-php)
+**Full documentation available at:** 👉 [**https://lizzyman04.github.io/fluxor-php**](https://lizzyman04.github.io/fluxor-php)
 
-The `fluxor-php` repository contains:
-- Step-by-step tutorials
-- Complete application examples
-- Template guides (basic, mvc, api)
-- Database configuration
-- Production deployment
-- API reference
+The documentation includes:
+- Installation guide
+- File-based routing
+- Flow syntax reference
+- Views and layouts
+- Controllers and middleware
+- Environment configuration
+- Complete API reference with helper functions
 
 ## 🎯 Who is this for?
 
@@ -175,6 +221,7 @@ The `fluxor-php` repository contains:
 - **API developers** who want minimal overhead
 - **MVC learners** who want to understand internals
 - **Performance purists** who hate bloat
+- **Developers** who love Next.js-style routing
 
 ## 📄 License
 
