@@ -24,10 +24,10 @@ class View
 
     public static function setViewsPath(string $path): void
     {
-        if (!is_dir($path)) {
+        if (!\is_dir($path)) {
             throw new AppException("Views path does not exist: {$path}");
         }
-        self::$viewsPath = rtrim(realpath($path), '/\\');
+        self::$viewsPath = \rtrim(\realpath($path), '/\\');
     }
 
     public static function getViewsPath(): string
@@ -43,7 +43,7 @@ class View
     public static function exists(string $view): bool
     {
         try {
-            return file_exists(self::resolveViewPath($view));
+            return \file_exists(self::resolveViewPath($view));
         } catch (AppException) {
             return false;
         }
@@ -53,22 +53,22 @@ class View
     {
         try {
             $viewFile = self::resolveViewPath($view);
-            $allData = array_merge(self::$shared, $data, self::$currentData);
+            $allData = [...self::$shared, ...$data, self::$currentData];
 
             $previousData = self::$currentData;
             self::$currentData = $allData;
 
-            extract($allData, EXTR_SKIP);
+            \extract($allData, EXTR_SKIP);
 
-            ob_start();
+            \ob_start();
             try {
                 include $viewFile;
             } catch (\Throwable $e) {
-                ob_end_clean();
+                \ob_end_clean();
                 self::$currentData = $previousData;
                 throw new AppException("View rendering failed: {$e->getMessage()} in {$view}", 0, $e);
             }
-            $content = ob_get_clean();
+            $content = \ob_get_clean();
 
             while (!empty(self::$extendedLayouts)) {
                 $layout = array_pop(self::$extendedLayouts);
@@ -83,7 +83,7 @@ class View
             if (self::isDebugMode()) {
                 throw $e;
             }
-            error_log("[Fluxor View Error] {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}");
+            \error_log("[Fluxor View Error] {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}");
             return '<h1>View Error</h1><p>Something went wrong rendering the view.</p>';
         }
     }
@@ -101,7 +101,7 @@ class View
 
         self::$currentSection = $name;
         self::$sectionStarted = true;
-        ob_start();
+        \ob_start();
     }
 
     public static function endSection(): void
@@ -110,7 +110,7 @@ class View
             throw new AppException("No section started to end.");
         }
 
-        self::$sections[self::$currentSection] = ob_get_clean();
+        self::$sections[self::$currentSection] = \ob_get_clean();
         self::$sectionStarted = false;
         self::$currentSection = '';
     }
@@ -130,7 +130,7 @@ class View
         if (empty(self::$stacks[$stack])) {
             return '';
         }
-        return implode($glue, self::$stacks[$stack]);
+        return \implode($glue, self::$stacks[$stack]);
     }
 
     public static function extend(string $layout): void
@@ -140,12 +140,12 @@ class View
 
     public static function include(string $view, array $data = []): void
     {
-        echo self::render($view, array_merge(self::$currentData, $data));
+        echo self::render($view, [...self::$currentData, ...$data]);
     }
 
     public static function escape(string $value): string
     {
-        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        return \htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 
     public static function e(string $value): string
@@ -160,18 +160,18 @@ class View
 
     public static function csrfField(): string
     {
-        if (session_status() !== PHP_SESSION_ACTIVE) {
-            session_start();
+        if (\session_status() !== PHP_SESSION_ACTIVE) {
+            \session_start();
         }
-        $token = $_SESSION['csrf_token'] ?? bin2hex(random_bytes(32));
+        $token = $_SESSION['csrf_token'] ?? \bin2hex(\random_bytes(32));
         $_SESSION['csrf_token'] = $token;
         return '<input type="hidden" name="_token" value="' . self::escape($token) . '">';
     }
 
     public static function method(string $method): string
     {
-        $method = strtoupper($method);
-        if (!in_array($method, ['PUT', 'PATCH', 'DELETE'], true)) {
+        $method = \strtoupper($method);
+        if (!\in_array($method, ['PUT', 'PATCH', 'DELETE'], true)) {
             return '';
         }
         return '<input type="hidden" name="_method" value="' . self::escape($method) . '">';
@@ -179,16 +179,16 @@ class View
 
     public static function asset(string $path): string
     {
-        return self::url('assets/' . ltrim($path, '/'));
+        return self::url('assets/' . \ltrim($path, '/'));
     }
 
     public static function url(string $path = ''): string
     {
         $app = self::$app ?? App::getInstance();
         if (!$app) {
-            return '/' . ltrim($path, '/');
+            return '/' . \ltrim($path, '/');
         }
-        return rtrim($app->getBaseUrl(), '/') . '/' . ltrim($path, '/');
+        return \rtrim($app->getBaseUrl(), '/') . '/' . \ltrim($path, '/');
     }
 
     private static function resolveViewPath(string $view): string
@@ -197,20 +197,20 @@ class View
             throw new AppException("Views path not set.");
         }
 
-        $view = strip_tags($view);
-        $view = str_replace(['\\', '.'], '/', $view);
-        $view = preg_replace('/\.php$|\.html$/', '', $view);
+        $view = \strip_tags($view);
+        $view = \str_replace(['\\', '.'], '/', $view);
+        $view = \preg_replace('/\.php$|\.html$/', '', $view);
 
         $paths = [
             self::$viewsPath . '/' . $view,
             self::$viewsPath . '/' . $view . '.php',
             self::$viewsPath . '/' . $view . '.html',
-            self::$viewsPath . '/' . $view . '/index.php',
-            self::$viewsPath . '/' . $view . '/index.html',
+            self::$viewsPath . '/' . "{$view}/index.php",
+            self::$viewsPath . '/' . "{$view}/index.html",
         ];
 
         foreach ($paths as $path) {
-            if (file_exists($path)) {
+            if (\file_exists($path)) {
                 return $path;
             }
         }

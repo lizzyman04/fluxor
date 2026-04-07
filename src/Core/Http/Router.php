@@ -89,27 +89,27 @@ class Router
     private function extractUrl(): string
     {
         $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
-        $url = parse_url($requestUri, PHP_URL_PATH) ?? '/';
+        $url = \parse_url($requestUri, PHP_URL_PATH) ?? '/';
 
         if (!empty($this->config['base_url'])) {
-            $parsedBase = parse_url($this->config['base_url']);
+            $parsedBase = \parse_url($this->config['base_url']);
             $basePath = $parsedBase['path'] ?? '';
-            if ($basePath && str_starts_with($url, $basePath)) {
-                $url = substr($url, strlen($basePath));
+            if ($basePath && \str_starts_with($url, $basePath)) {
+                $url = \substr($url, \strlen($basePath));
             }
         } elseif (!empty($this->baseUrl)) {
-            $parsedBase = parse_url($this->baseUrl);
+            $parsedBase = \parse_url($this->baseUrl);
             $basePath = $parsedBase['path'] ?? '';
-            if ($basePath && str_starts_with($url, $basePath)) {
-                $url = substr($url, strlen($basePath));
+            if ($basePath && \str_starts_with($url, $basePath)) {
+                $url = \substr($url, \strlen($basePath));
             }
         }
 
-        if (str_starts_with($url, '/public')) {
-            $url = substr($url, 7);
+        if (\str_starts_with($url, '/public')) {
+            $url = \substr($url, 7);
         }
 
-        $url = '/' . trim(explode('?', $url)[0], '/');
+        $url = '/' . \trim(\explode('?', $url)[0], '/');
         return $url === '' ? '/' : $url;
     }
 
@@ -131,22 +131,22 @@ class Router
     {
         if ($response instanceof Response) {
             $response->send();
-        } elseif (is_array($response) || is_object($response)) {
+        } elseif (\is_array($response) || \is_object($response)) {
             Response::json($response)->send();
-        } elseif (is_string($response)) {
+        } elseif (\is_string($response)) {
             echo $response;
         }
     }
 
     private function getAllHeaders(): array
     {
-        if (function_exists('getallheaders')) {
+        if (\function_exists('getallheaders')) {
             return getallheaders();
         }
         $headers = [];
         foreach ($_SERVER as $name => $value) {
-            if (str_starts_with($name, 'HTTP_')) {
-                $headers[str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
+            if (\str_starts_with($name, 'HTTP_')) {
+                $headers[\str_replace(' ', '-', \ucwords(\strtolower(str_replace('_', ' ', \substr($name, 5)))))] = $value;
             }
         }
         return $headers;
@@ -154,10 +154,10 @@ class Router
 
     private function getJsonBody(): array
     {
-        $input = file_get_contents('php://input');
+        $input = \file_get_contents('php://input');
         if ($input) {
-            $json = json_decode($input, true);
-            if (json_last_error() === JSON_ERROR_NONE) {
+            $json = \json_decode($input, true);
+            if (\json_last_error() === JSON_ERROR_NONE) {
                 return $json;
             }
         }

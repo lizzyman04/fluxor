@@ -16,7 +16,7 @@ class Response
     {
         $this->data = $data;
         $this->statusCode = $statusCode;
-        $this->headers = array_merge([
+        $this->headers = \array_merge([
             'Content-Type' => 'application/json'
         ], $headers);
     }
@@ -73,12 +73,12 @@ class Response
         return self::html($content, $statusCode);
     }
 
-    public static function download(string $filePath, string $filename = null, array $headers = []): self
+    public static function download(string $filePath, ?string $filename = null, array $headers = []): self
     {
-        $filename = $filename ?: basename($filePath);
-        $fileSize = filesize($filePath);
+        $filename = $filename ?: \basename($filePath);
+        $fileSize = \filesize($filePath);
 
-        $response = new static(null, 200, array_merge([
+        $response = new static(null, 200, \array_merge([
             'Content-Type' => 'application/octet-stream',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
             'Content-Length' => $fileSize,
@@ -113,7 +113,7 @@ class Response
 
     public function withHeaders(array $headers): self
     {
-        $this->headers = array_merge($this->headers, $headers);
+        $this->headers = [...$this->headers, ...$headers];
         return $this;
     }
 
@@ -125,18 +125,18 @@ class Response
 
     public function send(): void
     {
-        http_response_code($this->statusCode);
+        \http_response_code($this->statusCode);
 
         foreach ($this->headers as $name => $value) {
-            header("{$name}: {$value}");
+            \header("{$name}: {$value}");
         }
 
         if ($this->data !== null) {
-            if (isset($this->headers['Content-Type']) && $this->headers['Content-Type'] === 'application/octet-stream' && is_string($this->data) && file_exists($this->data)) {
+            if (isset($this->headers['Content-Type']) && $this->headers['Content-Type'] === 'application/octet-stream' && \is_string($this->data) && \file_exists($this->data)) {
                 readfile($this->data);
-            } elseif (is_array($this->data) || is_object($this->data)) {
-                echo json_encode($this->data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-            } elseif (is_string($this->data)) {
+            } elseif (\is_array($this->data) || \is_object($this->data)) {
+                echo \json_encode($this->data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            } elseif (\is_string($this->data)) {
                 echo $this->data;
             } else {
                 echo (string) $this->data;
@@ -146,9 +146,9 @@ class Response
 
     public function __toString(): string
     {
-        ob_start();
+        \ob_start();
         $this->send();
-        return ob_get_clean();
+        return \ob_get_clean();
     }
 
     public function getStatusCode(): int
@@ -159,5 +159,16 @@ class Response
     public function getHeaders(): array
     {
         return $this->headers;
+    }
+
+    public function getBodyContent(): string
+    {
+        if (\is_string($this->data)) {
+            return $this->data;
+        }
+        if (\is_array($this->data) || \is_object($this->data)) {
+            return \json_encode($this->data);
+        }
+        return (string) $this->data;
     }
 }

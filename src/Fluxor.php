@@ -18,6 +18,7 @@ class_alias(Core\App::class, App::class);                       // new Fluxor\Ap
 class_alias(Core\Controller::class, Controller::class);         // extends Fluxor\Controller
 class_alias(Core\Http\Request::class, Request::class);          // Fluxor\Request
 class_alias(Core\Http\Response::class, Response::class);        // Fluxor\Response
+class_alias(Core\Http\Fetch::class, Fetch::class);              // Fluxor\Fetch
 class_alias(Core\Http\Router::class, Router::class);            // Fluxor\Router
 class_alias(Core\View::class, View::class);                     // Fluxor\View
 

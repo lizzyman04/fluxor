@@ -64,7 +64,7 @@ class ErrorHandler
 
         if (App::make()->isDevelopment()) {
             Response::json([
-                'error' => get_class($e),
+                'error' => \get_class($e),
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
@@ -77,24 +77,24 @@ class ErrorHandler
 
     private function renderErrorPage(int $statusCode, string $message): void
     {
-        http_response_code($statusCode);
+        \http_response_code($statusCode);
 
         $userView = $this->viewsPath . "/errors/{$statusCode}.php";
-        if (file_exists($userView)) {
-            extract(['statusCode' => $statusCode, 'message' => $message]);
+        if (\file_exists($userView)) {
+            \extract(['statusCode' => $statusCode, 'message' => $message]);
             include $userView;
             exit;
         }
 
         $userCommonView = $this->viewsPath . "/errors/common.php";
-        if (file_exists($userCommonView)) {
-            extract(['statusCode' => $statusCode, 'message' => $message]);
+        if (\file_exists($userCommonView)) {
+            \extract(['statusCode' => $statusCode, 'message' => $message]);
             include $userCommonView;
             exit;
         }
 
-        $vendorView = dirname(__DIR__, 2) . '/Resources/views/errors/common.php';
-        extract(['statusCode' => $statusCode, 'message' => $message]);
+        $vendorView = \dirname(__DIR__, 2) . '/Resources/views/errors/common.php';
+        \extract(['statusCode' => $statusCode, 'message' => $message]);
         include $vendorView;
         exit;
     }
@@ -103,16 +103,16 @@ class ErrorHandler
     {
         $currentPath = $startPath ?: $request->getRouterPath();
 
-        while ($currentPath && str_starts_with($currentPath, $this->routerPath)) {
+        while ($currentPath && \str_starts_with($currentPath, $this->routerPath)) {
             foreach ([$type, $this->getStatusCodeFromType($type)] as $handlerName) {
                 if (!$handlerName)
                     continue;
 
                 $handlerFile = $currentPath . '/' . $handlerName . '.php';
-                if (file_exists($handlerFile)) {
+                if (\file_exists($handlerFile)) {
                     $handler = include $handlerFile;
-                    if (is_callable($handler)) {
-                        $request->setParams(array_merge($request->params, $context));
+                    if (\is_callable($handler)) {
+                        $request->setParams([...$request->params, ...$context]);
                         return [
                             'file' => $handlerFile,
                             'params' => $request->params,
@@ -122,7 +122,7 @@ class ErrorHandler
                 }
             }
 
-            $parentPath = dirname($currentPath);
+            $parentPath = \dirname($currentPath);
             if ($parentPath === $currentPath)
                 break;
             $currentPath = $parentPath;

@@ -42,10 +42,10 @@ class Dispatcher
     private function normalizeResponse($result): Response
     {
         return match (true) {
-            is_callable($result) => $result($this->request),
+            \is_callable($result) => $result($this->request),
             $result instanceof Response => $result,
-            is_array($result) || is_object($result) => Response::json($result),
-            is_string($result) => Response::html($result),
+            \is_array($result) || \is_object($result) => Response::json($result),
+            \is_string($result) => Response::html($result),
             default => throw new AppException('Route must return a callable, Response, or convertible value')
         };
     }
@@ -54,9 +54,9 @@ class Dispatcher
     {
         if ($response instanceof Response) {
             $response->send();
-        } elseif (is_array($response) || is_object($response)) {
+        } elseif (\is_array($response) || \is_object($response)) {
             Response::json($response)->send();
-        } elseif (is_string($response)) {
+        } elseif (\is_string($response)) {
             echo $response;
         }
     }

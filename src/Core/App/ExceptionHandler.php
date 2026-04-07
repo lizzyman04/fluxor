@@ -19,13 +19,19 @@ class ExceptionHandler
 
     public function handle(Throwable $e): void
     {
+        if (\headers_sent()) {
+            \error_log($e->getMessage());
+            echo "Error: " . $e->getMessage();
+            return;
+        }
+
         $statusCode = $this->getStatusCode($e);
         $response = $this->buildResponse($e, $statusCode);
 
-        http_response_code($statusCode);
-        header('Content-Type: application/json');
+        \http_response_code($statusCode);
+        \header('Content-Type: application/json');
 
-        echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        echo \json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
         $this->log($e);
     }
 
@@ -41,7 +47,7 @@ class ExceptionHandler
     {
         if ($this->debug) {
             return [
-                'error' => get_class($e),
+                'error' => \get_class($e),
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
@@ -58,10 +64,10 @@ class ExceptionHandler
     private function log(Throwable $e): void
     {
         if ($this->debug) {
-            error_log(sprintf(
+            \error_log(\sprintf(
                 "[%s] %s: %s in %s:%d",
-                date('Y-m-d H:i:s'),
-                get_class($e),
+                \date('Y-m-d H:i:s'),
+                \get_class($e),
                 $e->getMessage(),
                 $e->getFile(),
                 $e->getLine()

@@ -30,7 +30,7 @@ class Str
      */
     public function upper(): self
     {
-        $this->value = strtoupper($this->value);
+        $this->value = \strtoupper($this->value);
         return $this;
     }
 
@@ -39,7 +39,7 @@ class Str
      */
     public function lower(): self
     {
-        $this->value = strtolower($this->value);
+        $this->value = \strtolower($this->value);
         return $this;
     }
 
@@ -57,8 +57,8 @@ class Str
      */
     public function studly(): self
     {
-        $value = ucwords(str_replace(['-', '_'], ' ', $this->value));
-        $this->value = str_replace(' ', '', $value);
+        $value = \ucwords(\str_replace(['-', '_'], ' ', $this->value));
+        $this->value = \str_replace(' ', '', $value);
         return $this;
     }
 
@@ -68,8 +68,8 @@ class Str
     public function snake(string $delimiter = '_'): self
     {
         if (!ctype_lower($this->value)) {
-            $value = preg_replace('/\s+/u', '', ucwords($this->value));
-            $this->value = strtolower(preg_replace('/(.)(?=[A-Z])/u', '$1' . $delimiter, $value));
+            $value = \preg_replace('/\s+/u', '', \ucwords($this->value));
+            $this->value = \strtolower(\preg_replace('/(.)(?=[A-Z])/u', '$1' . $delimiter, $value));
         }
         return $this;
     }
@@ -79,7 +79,7 @@ class Str
      */
     public function contains(string $needle): bool
     {
-        return str_contains($this->value, $needle);
+        return \str_contains($this->value, $needle);
     }
 
     /**
@@ -87,7 +87,7 @@ class Str
      */
     public function startsWith(string $needle): bool
     {
-        return str_starts_with($this->value, $needle);
+        return \str_starts_with($this->value, $needle);
     }
 
     /**
@@ -95,7 +95,7 @@ class Str
      */
     public function endsWith(string $needle): bool
     {
-        return str_ends_with($this->value, $needle);
+        return \str_ends_with($this->value, $needle);
     }
 
     /**
@@ -106,7 +106,7 @@ class Str
         if (mb_strwidth($this->value, 'UTF-8') <= $limit) {
             return $this;
         }
-        $this->value = rtrim(mb_strimwidth($this->value, 0, $limit, '', 'UTF-8')) . $end;
+        $this->value = \rtrim(mb_strimwidth($this->value, 0, $limit, '', 'UTF-8')) . $end;
         return $this;
     }
 
@@ -116,10 +116,10 @@ class Str
     public static function random(int $length = 16): string
     {
         $string = '';
-        while (($len = strlen($string)) < $length) {
+        while (($len = \strlen($string)) < $length) {
             $size = $length - $len;
-            $bytes = random_bytes($size);
-            $string .= substr(str_replace(['/', '+', '='], '', base64_encode($bytes)), 0, $size);
+            $bytes = \random_bytes($size);
+            $string .= \substr(\str_replace(['/', '+', '='], '', \base64_encode($bytes)), 0, $size);
         }
         return $string;
     }

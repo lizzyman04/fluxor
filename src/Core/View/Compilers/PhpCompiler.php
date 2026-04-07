@@ -11,6 +11,6 @@ class PhpCompiler
 
     public function compileEscapedEchos(string $content): string
     {
-        return preg_replace('/\{\{\s*(.+?)\s*\}\}/', '<?= htmlspecialchars($1, ENT_QUOTES, \'UTF-8\') ?>', $content);
+        return \preg_replace('/\{\{\s*(.+?)\s*\}\}/', '<?= \htmlspecialchars($1, ENT_QUOTES, \'UTF-8\') ?>', $content);
     }
 }

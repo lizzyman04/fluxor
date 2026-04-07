@@ -1,9 +1,4 @@
 <?php
-/**
- * Application Core Container
- * 
- * Handles bootstrapping and core service registration.
- */
 
 namespace Fluxor\Core\App;
 
@@ -24,6 +19,7 @@ class Application
         $this->basePath = $basePath;
         $this->baseUrl = $baseUrl;
         $this->container = new ServiceContainer();
+        $this->config = Config::createDefault($basePath, $baseUrl);
     }
 
     public function bootstrap(): void
@@ -33,17 +29,19 @@ class Application
         }
 
         Environment::loadEnvironment($this->basePath);
-        $this->config = Config::createDefault($this->basePath, $this->baseUrl);
 
         Environment::configureRuntime(
             $this->config->get('environment'),
             $this->config->get('debug')
         );
 
-        date_default_timezone_set($this->config->get('timezone'));
+        \date_default_timezone_set($this->config->get('timezone'));
 
         $this->router = new Router($this->basePath, $this->baseUrl);
-        $this->container->initializeCoreServices($this->config, $this->router);
+        $this->router->setConfig($this->config->all());
+
+        $this->container->set('config', $this->config);
+        $this->container->set('router', $this->router);
 
         $this->booted = true;
     }
@@ -52,18 +50,22 @@ class Application
     {
         return $this->container;
     }
+
     public function getConfig(): Config
     {
         return $this->config;
     }
+
     public function getRouter(): Router
     {
         return $this->router;
     }
+
     public function getBasePath(): string
     {
         return $this->basePath;
     }
+
     public function getBaseUrl(): string
     {
         return $this->baseUrl;

@@ -23,7 +23,7 @@ class Request
     public function __construct(array $attributes = [])
     {
         foreach ($attributes as $key => $value) {
-            if (property_exists($this, $key)) {
+            if (\property_exists($this, $key)) {
                 $this->$key = $value;
             }
         }
@@ -56,7 +56,7 @@ class Request
 
     public function all(): array
     {
-        return array_merge($this->query, $this->body, $this->json);
+        return [...$this->query, ...$this->body, $this->json];
     }
 
     public function only(array $keys): array
@@ -73,7 +73,7 @@ class Request
 
     public function has(string $key): bool
     {
-        return array_key_exists($key, $this->all());
+        return \array_key_exists($key, $this->all());
     }
 
     public function filled(string $key): bool
@@ -90,8 +90,8 @@ class Request
     public function bearerToken(): ?string
     {
         $header = $this->headers['Authorization'] ?? $this->headers['authorization'] ?? '';
-        if (str_starts_with($header, 'Bearer ')) {
-            return substr($header, 7);
+        if (\str_starts_with($header, 'Bearer ')) {
+            return \substr($header, 7);
         }
         return null;
     }
@@ -99,40 +99,40 @@ class Request
     public function isJson(): bool
     {
         $contentType = $this->headers['Content-Type'] ?? $this->headers['content-type'] ?? '';
-        return str_contains($contentType, 'application/json');
+        return \str_contains($contentType, 'application/json');
     }
 
     public function wantsJson(): bool
     {
-        return $this->isJson() || in_array('application/json', $this->getAcceptableContentTypes());
+        return $this->isJson() || \in_array('application/json', $this->getAcceptableContentTypes());
     }
 
     public function expectsHtml(): bool
     {
-        return in_array('text/html', $this->getAcceptableContentTypes()) ||
-            in_array('*/*', $this->getAcceptableContentTypes());
+        return \in_array('text/html', $this->getAcceptableContentTypes()) ||
+            \in_array('*/*', $this->getAcceptableContentTypes());
     }
 
     public function getAcceptableContentTypes(): array
     {
         if ($this->acceptableContentTypes === null) {
             $accept = $this->headers['Accept'] ?? $this->headers['accept'] ?? '*/*';
-            $this->acceptableContentTypes = array_map('trim', explode(',', $accept));
+            $this->acceptableContentTypes = \array_map('trim', \explode(',', $accept));
         }
         return $this->acceptableContentTypes;
     }
 
     public function is(string $pattern): bool
     {
-        $pattern = str_replace('/', '\/', $pattern);
-        $pattern = preg_replace('/\{[^}]+\}/', '[^\/]+', $pattern);
-        return (bool) preg_match('#^' . $pattern . '$#', $this->path);
+        $pattern = \str_replace('/', '\/', $pattern);
+        $pattern = \preg_replace('/\{[^}]+\}/', '[^\/]+', $pattern);
+        return (bool) \preg_match('#^' . $pattern . '$#', $this->path);
     }
 
-    public function session(string $key = null, $default = null)
+    public function session(?string $key = null, $default = null)
     {
-        if (session_status() !== PHP_SESSION_ACTIVE) {
-            session_start();
+        if (\session_status() !== PHP_SESSION_ACTIVE) {
+            \session_start();
         }
 
         if ($key === null) {
@@ -152,7 +152,7 @@ class Request
 
         $sessionToken = $this->session('csrf_token');
 
-        return $sessionToken && hash_equals($sessionToken, $token);
+        return $sessionToken && \hash_equals($sessionToken, $token);
     }
 
     public function isAuthenticated(): bool
@@ -167,7 +167,7 @@ class Request
 
     public function isMethod(string $method): bool
     {
-        return strtoupper($method) === $this->method;
+        return \strtoupper($method) === $this->method;
     }
 
     public function isSecure(): bool

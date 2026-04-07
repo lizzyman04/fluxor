@@ -12,85 +12,27 @@
 Fluxor Core is the **engine behind the Fluxor PHP framework** - a minimal, elegant, and powerful MVC core designed for developers who want **simplicity without sacrificing functionality**.
 
 Unlike monolithic frameworks, Fluxor Core gives you:
+
 - 🚀 **Blazing fast performance** (boot under 10ms)
-- 📦 **Zero dependencies** - just pure PHP!
+- 📦 **Zero core dependencies** - just pure PHP!
 - 🔍 **Transparent code** - no magic, you can read everything
 - 🎯 **File-based routing** inspired by Next.js
-- 💎 **Beautiful Flow syntax** for route definitions
-
-## ✨ Core Features
-
-| Feature | Description |
-|---------|-------------|
-| **🎯 File-based Routing** | Routes defined by folder structure - like Next.js |
-| **💎 Flow Syntax** | Ultra-clean, chainable route definitions |
-| **🔄 MVC Architecture** | Clean separation with Controllers and Views |
-| **🎨 View System** | Layouts, sections, stacks, and partials |
-| **🛡️ Security First** | Built-in CSRF, XSS protection, secure sessions |
-| **🚦 Middleware** | Flexible request filtering (global + per-route) |
-| **🎭 Error Handling** | Hierarchical error pages (404, 500, etc.) |
-| **🔧 Zero Config** | Auto-detects base path and URL |
-| **🌍 Environment Support** | Built-in .env file parser with type casting |
+- 💎 **Elegant Flow syntax** for route definitions
+- 🔒 **Config locking** to protect critical settings
+- 🌐 **Built-in CORS support** (global + per-route)
 
 ## 🚀 Quick Start
 
 ```bash
-# Add Fluxor Core to your project
 composer require lizzyman04/fluxor
+```
 
-# Basic usage
+```php
 <?php
 require 'vendor/autoload.php';
 
 $app = new Fluxor\App();
 $app->run();
-```
-
-## 🏗️ Core Architecture
-
-```
-fluxor/
-├── src/
-│   ├── Core/
-│   │   ├── App.php              # Application facade
-│   │   ├── Controller.php       # Base controller
-│   │   ├── View.php             # View engine
-│   │   ├── App/                 # Application internals
-│   │   │   ├── Application.php
-│   │   │   ├── Config.php
-│   │   │   ├── Environment.php
-│   │   │   └── ExceptionHandler.php
-│   │   ├── Foundation/          # Service container
-│   │   │   ├── ServiceContainer.php
-│   │   │   └── ServiceProvider.php
-│   │   ├── Http/                # HTTP layer
-│   │   │   ├── Request.php
-│   │   │   ├── Response.php
-│   │   │   ├── Router.php
-│   │   │   └── Router/          # Router components
-│   │   │       ├── Dispatcher.php
-│   │   │       ├── ErrorHandler.php
-│   │   │       └── Matcher.php
-│   │   ├── Routing/             # Flow syntax
-│   │   │   └── Flow.php
-│   │   ├── Resources/           # Built-in resources
-│   │   │   └── views/errors/    # Error templates
-│   │   └── View/                # View components
-│   │       ├── ViewFactory.php
-│   │       └── Compilers/
-│   │           └── PhpCompiler.php
-│   ├── Contracts/
-│   │   └── ControllerInterface.php
-│   ├── Exceptions/
-│   │   ├── AppException.php
-│   │   ├── HttpException.php
-│   │   ├── NotFoundException.php
-│   │   └── ValidationException.php
-│   ├── Helpers/
-│   │   ├── Functions.php        # Global helper functions
-│   │   ├── HttpStatusCode.php
-│   │   └── Str.php
-│   └── Fluxor.php                # Re-exports for clean API
 ```
 
 ## 🎯 Zero Config Import
@@ -112,6 +54,13 @@ use Fluxor\View;
 $app = new Fluxor\App();
 $basePath = $app->getBasePath();  // Auto-detected!
 $baseUrl = $app->getBaseUrl();    // Auto-detected!
+```
+
+### Global CORS Configuration
+```php
+$app = new Fluxor\App();
+$app->cors()->allowOrigin('*')->enable();
+$app->run();
 ```
 
 ### File-based Routing
@@ -194,14 +143,6 @@ dump($user);
 dd($data);  // Dump and die
 ```
 
-## 📊 Performance
-
-- **Boot time**: < 10ms
-- **Memory footprint**: ~2MB
-- **Zero dependencies** - no external packages required
-- **Zero magic** - no reflection overhead
-- **File-based routing** - no route caching needed
-
 ## 📚 Documentation
 
 **Full documentation available at:** 👉 [**https://lizzyman04.github.io/fluxor-php**](https://lizzyman04.github.io/fluxor-php)
@@ -214,14 +155,6 @@ The documentation includes:
 - Controllers and middleware
 - Environment configuration
 - Complete API reference with helper functions
-
-## 🎯 Who is this for?
-
-- **Framework authors** building custom solutions
-- **API developers** who want minimal overhead
-- **MVC learners** who want to understand internals
-- **Performance purists** who hate bloat
-- **Developers** who love Next.js-style routing
 
 ## 📄 License
 
