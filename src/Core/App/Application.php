@@ -40,6 +40,8 @@ class Application
         $this->router = new Router($this->basePath, $this->baseUrl);
         $this->router->setConfig($this->config->all());
 
+        $this->container->initializeCoreServices($this->config, $this->router);
+
         $this->container->set('config', $this->config);
         $this->container->set('router', $this->router);
 

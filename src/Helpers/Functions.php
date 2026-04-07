@@ -6,11 +6,9 @@
 use Fluxor\Core\App;
 use Fluxor\Core\Http\Fetch;
 use Fluxor\Core\Http\Response;
-use Fluxor\Exceptions\HttpException;
-use RuntimeException;
-use InvalidArgumentException;
 use Fluxor\Core\App\Environment;
 use Fluxor\Helpers\HttpStatusCode;
+use Fluxor\Exceptions\HttpException;
 
 if (!\function_exists('app')) {
     function app(string $service = null)
@@ -69,7 +67,7 @@ if (!\function_exists('fetch')) {
             'DELETE' => Fetch::delete($url, $body),
             'HEAD' => Fetch::head($url),
             'OPTIONS' => Fetch::options($url),
-            default => throw new InvalidArgumentException("Unsupported HTTP method: {$method}"),
+            default => throw new \InvalidArgumentException("Unsupported HTTP method: {$method}"),
         };
     }
 }
@@ -94,7 +92,7 @@ if (!\function_exists('env_required')) {
      * 
      * @param string $key
      * @return mixed
-     * @throws RuntimeException
+     * @throws \RuntimeException
      */
     function env_required(string $key)
     {

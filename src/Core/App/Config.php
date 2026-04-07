@@ -130,8 +130,7 @@ class Config
 
     public static function createDefault(string $basePath, string $baseUrl): self
     {
-        $instance = new self();
-        $instance->items = [
+        return new self([
             'router_path' => "{$basePath}/app/router",
             'views_path' => "{$basePath}/src/Views",
             'storage_path' => "{$basePath}/storage",
@@ -145,9 +144,7 @@ class Config
             'session_secure' => (bool) Environment::get('SESSION_SECURE', false),
             'csrf_token_name' => Environment::get('CSRF_TOKEN_NAME', 'csrf_token'),
             'method_field_name' => Environment::get('METHOD_FIELD_NAME', '_method'),
-        ];
-
-        return $instance;
+        ]);
     }
 
     public function freeze(): self

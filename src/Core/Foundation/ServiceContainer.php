@@ -1,7 +1,4 @@
 <?php
-/**
- * Service Container
- */
 
 namespace Fluxor\Core\Foundation;
 
@@ -50,10 +47,13 @@ class ServiceContainer
     public function initializeCoreServices(Config $config, Router $router): void
     {
         $view = new View();
-        $view->setViewsPath($config->get('views_path'));
+        
+        $viewsPath = $config->get('views_path');
+        if ($viewsPath) {
+            $view->setViewsPath($viewsPath);
+        }
+        
         $this->set('view', $view);
-
-        $router->setConfig($config->all());
         $this->set('router', $router);
         $this->set('config', $config);
     }
