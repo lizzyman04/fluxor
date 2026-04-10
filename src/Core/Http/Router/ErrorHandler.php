@@ -19,116 +19,155 @@ class ErrorHandler
         $this->viewsPath = $viewsPath;
     }
 
-    public function handleNotFound(Request $request): void
+    public function handleNotFound(Request $request): Response
     {
-        $response = $this->findErrorHandlerRecursive('not-found', $request, ['requested_path' => $request->path]);
-        if ($response) {
-            (new Dispatcher($request))->dispatch([
-                'file' => $response['file'],
-                'params' => $response['params'],
-                'router_path' => $response['router_path']
-            ]);
-            return;
+        $response = $this->findErrorHandler('not-found', $request, ['requested_path' => $request->path]);
+
+        if ($response !== null) {
+            return $response;
         }
 
         if ($request->wantsJson()) {
-            Response::json([
+            return Response::json([
                 'error' => 'Not Found',
                 'message' => 'The requested resource was not found',
-                'path' => $request->path
-            ], HttpStatusCode::NOT_FOUND)->send();
-            return;
+                'path' => $request->path,
+            ], HttpStatusCode::NOT_FOUND);
         }
 
-        $this->renderErrorPage(HttpStatusCode::NOT_FOUND, 'Not Found');
+        return $this->renderErrorPage(HttpStatusCode::NOT_FOUND, 'Not Found');
     }
 
-    public function handleError(\Throwable $e, Request $request, string $routerPath): void
+    public function handleMethodNotAllowed(Request $request, array $allowedMethods): Response
     {
-        $statusCode = $e instanceof AppException ? ($e->getCode() ?: HttpStatusCode::INTERNAL_SERVER_ERROR) : HttpStatusCode::INTERNAL_SERVER_ERROR;
-        $errorType = $this->getErrorTypeFromStatusCode($statusCode);
+        $response = $this->findErrorHandler('not-allowed', $request, [
+            'allowed_methods' => $allowedMethods,
+        ]);
 
-        $response = $this->findErrorHandlerRecursive($errorType, $request, [
+        if ($response !== null) {
+            return $response;
+        }
+
+        if ($request->wantsJson()) {
+            return Response::json([
+                'error' => 'Method Not Allowed',
+                'message' => 'The request method is not allowed for this route',
+                'allowed_methods' => $allowedMethods,
+            ], HttpStatusCode::METHOD_NOT_ALLOWED)->withHeaders([
+                        'Allow' => \implode(', ', $allowedMethods),
+                    ]);
+        }
+
+        return $this->renderErrorPage(HttpStatusCode::METHOD_NOT_ALLOWED, 'Method Not Allowed')
+            ->withHeaders(['Allow' => \implode(', ', $allowedMethods)]);
+    }
+
+    public function handleError(\Throwable $e, Request $request, string $routerPath): Response
+    {
+        $statusCode = $e instanceof AppException
+            ? ($e->getCode() ?: HttpStatusCode::INTERNAL_SERVER_ERROR)
+            : HttpStatusCode::INTERNAL_SERVER_ERROR;
+
+        $errorType = $this->getErrorTypeFromStatusCode($statusCode);
+        $response = $this->findErrorHandler($errorType, $request, [
             'exception' => $e,
-            'status_code' => $statusCode
+            'status_code' => $statusCode,
         ], $routerPath);
 
-        if ($response) {
-            (new Dispatcher($request))->dispatch([
-                'file' => $response['file'],
-                'params' => $response['params'],
-                'router_path' => $response['router_path']
-            ]);
-            return;
+        if ($response !== null) {
+            return $response;
         }
 
         if (App::make()->isDevelopment()) {
-            Response::json([
+            return Response::json([
                 'error' => \get_class($e),
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
                 'trace' => $e->getTrace(),
-            ], $statusCode)->send();
-        } else {
-            $this->renderErrorPage($statusCode, HttpStatusCode::message($statusCode));
+            ], $statusCode);
         }
+
+        return $this->renderErrorPage($statusCode, HttpStatusCode::message($statusCode));
     }
 
-    private function renderErrorPage(int $statusCode, string $message): void
-    {
-        \http_response_code($statusCode);
-
-        $userView = $this->viewsPath . "/errors/{$statusCode}.php";
-        if (\file_exists($userView)) {
-            \extract(['statusCode' => $statusCode, 'message' => $message]);
-            include $userView;
-            exit;
-        }
-
-        $userCommonView = $this->viewsPath . "/errors/common.php";
-        if (\file_exists($userCommonView)) {
-            \extract(['statusCode' => $statusCode, 'message' => $message]);
-            include $userCommonView;
-            exit;
-        }
-
-        $vendorView = \dirname(__DIR__, 2) . '/Resources/views/errors/common.php';
-        \extract(['statusCode' => $statusCode, 'message' => $message]);
-        include $vendorView;
-        exit;
-    }
-
-    private function findErrorHandlerRecursive(string $type, Request $request, array $context = [], ?string $startPath = null): ?array
-    {
+    private function findErrorHandler(
+        string $type,
+        Request $request,
+        array $context = [],
+        ?string $startPath = null
+    ): ?Response {
         $currentPath = $startPath ?: $request->getRouterPath();
+        $depth = 0;
 
-        while ($currentPath && \str_starts_with($currentPath, $this->routerPath)) {
-            foreach ([$type, $this->getStatusCodeFromType($type)] as $handlerName) {
-                if (!$handlerName)
+        while ($depth++ < 20 && $currentPath && \str_starts_with($currentPath, $this->routerPath)) {
+            $statusCode = $this->getStatusCodeFromType($type);
+            $candidates = \array_filter([$type, $statusCode !== null ? (string) $statusCode : null]);
+
+            foreach ($candidates as $name) {
+                $handlerFile = $currentPath . '/' . $name . '.php';
+
+                if (!\file_exists($handlerFile)) {
                     continue;
+                }
 
-                $handlerFile = $currentPath . '/' . $handlerName . '.php';
-                if (\file_exists($handlerFile)) {
-                    $handler = include $handlerFile;
-                    if (\is_callable($handler)) {
-                        $request->setParams([...$request->params, ...$context]);
-                        return [
-                            'file' => $handlerFile,
-                            'params' => $request->params,
-                            'router_path' => $currentPath
-                        ];
-                    }
+                $handler = (static function (string $file) {
+                    return include $file;
+                })($handlerFile);
+
+                if (!\is_callable($handler)) {
+                    continue;
+                }
+
+                $request->setParams(\array_merge($request->params, $context));
+                $result = $handler($request);
+
+                if ($result instanceof Response) {
+                    return $result;
                 }
             }
 
             $parentPath = \dirname($currentPath);
-            if ($parentPath === $currentPath)
+
+            if ($parentPath === $currentPath) {
                 break;
+            }
+
             $currentPath = $parentPath;
         }
 
         return null;
+    }
+
+    private function renderErrorPage(int $statusCode, string $message): Response
+    {
+        $candidates = [
+            $this->viewsPath . "/errors/{$statusCode}.php",
+            $this->viewsPath . '/errors/common.php',
+            \dirname(__DIR__, 2) . '/Resources/views/errors/common.php',
+        ];
+
+        foreach ($candidates as $viewFile) {
+            if (\file_exists($viewFile)) {
+                return $this->renderView($viewFile, $statusCode, $message);
+            }
+        }
+
+        return Response::html(
+            '<html><body><h1>' . $statusCode . '</h1><p>' . \htmlspecialchars($message) . '</p></body></html>',
+            $statusCode
+        );
+    }
+
+    private function renderView(string $viewFile, int $statusCode, string $message): Response
+    {
+        \ob_start();
+        (static function (string $file, int $statusCode, string $message): void{
+            include $file;
+        })($viewFile, $statusCode, $message);
+        $content = \ob_get_clean();
+
+        return Response::html($content ?: '', $statusCode);
     }
 
     private function getErrorTypeFromStatusCode(int $code): string
@@ -144,7 +183,7 @@ class ErrorHandler
             HttpStatusCode::TOO_MANY_REQUESTS => 'too-many-requests',
             HttpStatusCode::INTERNAL_SERVER_ERROR => 'server-error',
             HttpStatusCode::SERVICE_UNAVAILABLE => 'service-unavailable',
-            default => 'server-error'
+            default => 'server-error',
         };
     }
 
@@ -159,7 +198,7 @@ class ErrorHandler
             'bad-request' => HttpStatusCode::BAD_REQUEST,
             'validation-error' => HttpStatusCode::UNPROCESSABLE_ENTITY,
             'csrf-error' => 419,
-            default => null
+            default => null,
         };
     }
 }

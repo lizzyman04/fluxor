@@ -17,6 +17,7 @@ class Request
     public string $userAgent;
     public bool $secure;
     public array $params = [];
+    public array $attributes = [];
     private string $routerPath = '';
     private ?array $acceptableContentTypes = null;
 
@@ -56,7 +57,7 @@ class Request
 
     public function all(): array
     {
-        return [...$this->query, ...$this->body, $this->json];
+        return [...$this->query, ...$this->body, ...$this->json];
     }
 
     public function only(array $keys): array
@@ -183,6 +184,21 @@ class Request
     public function getUserAgent(): string
     {
         return $this->userAgent;
+    }
+
+    public function setAttribute(string $key, $value): void
+    {
+        $this->attributes[$key] = $value;
+    }
+
+    public function getAttribute(string $key, $default = null)
+    {
+        return $this->attributes[$key] ?? $default;
+    }
+
+    public function hasAttribute(string $key): bool
+    {
+        return isset($this->attributes[$key]);
     }
 
     public function __get(string $name)

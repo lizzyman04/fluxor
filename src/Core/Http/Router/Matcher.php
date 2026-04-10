@@ -6,231 +6,301 @@ class Matcher
 {
     private string $routerPath;
     private array $routeCache = [];
-    private const CACHE_TTL = 300;
+    private array $methodCache = [];
+    private array $compiledRoutes = [];
+    private bool $useCache = true;
+    private bool $compiled = false;
+    private string $cacheFile;
 
     public function __construct(string $routerPath)
     {
-        $this->routerPath = \rtrim(str_replace('\\', '/', $routerPath), '/');
+        $this->routerPath = \rtrim(\str_replace('\\', '/', $routerPath), '/');
+        $this->cacheFile = \sys_get_temp_dir() . '/fluxor_routes_' . \md5($this->routerPath) . '.php';
     }
 
-    public function find(string $url): ?array
+    public function compile(): void
     {
-        $cacheKey = 'route_' . \md5($url);
-        if (isset($this->routeCache[$cacheKey]) && \time() - $this->routeCache[$cacheKey]['timestamp'] < self::CACHE_TTL) {
-            return $this->routeCache[$cacheKey]['data'];
+        if ($this->compiled) {
+            return;
         }
 
-        $path = \trim($url, '/');
-        if ($path === '') {
-            return $this->findRootRoute();
-        }
-
-        $segments = \explode('/', $path);
-
-        $result = $this->search($segments, $this->routerPath, [], false);
-
-        if (!$result) {
-            $result = $this->searchInGroups($segments, $this->routerPath, []);
-        }
-
-        if ($result) {
-            $this->cacheRoute($cacheKey, $result);
-        }
-
-        return $result;
-    }
-
-    private function search(array $segments, string $currentPath, array $params, bool $inGroup = false): ?array
-    {
-        if (empty($segments)) {
-            return $this->checkDirectoryRoute($currentPath, $params);
-        }
-
-        $currentSegment = $segments[0];
-        $remaining = array_slice($segments, 1);
-
-        $exactDir = $currentPath . '/' . $currentSegment;
-        if (\is_dir($exactDir)) {
-            $found = $this->search($remaining, $exactDir, $params, $inGroup);
-            if ($found) {
-                return $found;
+        if ($this->useCache && \file_exists($this->cacheFile)) {
+            $cached = include $this->cacheFile;
+            if (\is_array($cached) && isset($cached['routes'], $cached['methods'])) {
+                $this->compiledRoutes = $cached['routes'];
+                $this->methodCache = $cached['methods'];
+                $this->compiled = true;
+                return;
             }
         }
 
-        foreach (\scandir($currentPath) as $item) {
-            if ($item === '.' || $item === '..')
+        $this->compiledRoutes = [];
+        $this->methodCache = [];
+        $this->scanDirectory($this->routerPath);
+        $this->sortRoutes();
+
+        if ($this->useCache) {
+            \file_put_contents(
+                $this->cacheFile,
+                '<?php return ' . \var_export([
+                    'routes' => $this->compiledRoutes,
+                    'methods' => $this->methodCache,
+                ], true) . ';'
+            );
+        }
+
+        $this->compiled = true;
+    }
+
+    private function scanDirectory(string $currentPath): void
+    {
+        $items = \scandir($currentPath);
+        if ($items === false) {
+            return;
+        }
+
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') {
                 continue;
+            }
+            if (\is_dir($currentPath . '/' . $item)) {
+                $this->scanDirectory($currentPath . '/' . $item);
+            }
+        }
+
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+
             $fullPath = $currentPath . '/' . $item;
-            if (!\is_dir($fullPath))
-                continue;
 
-            if (\preg_match('/^\[([a-zA-Z_][a-zA-Z0-9_]*)\]$/', $item, $matches)) {
-                $newParams = $params;
-                $newParams[$matches[1]] = $currentSegment;
-                $found = $this->search($remaining, $fullPath, $newParams, $inGroup);
-                if ($found) {
-                    return $found;
-                }
-            }
-        }
+            if (\is_file($fullPath) && \pathinfo($item, PATHINFO_EXTENSION) === 'php') {
+                $relativePath = \substr($fullPath, \strlen($this->routerPath) + 1);
+                $pattern = $this->buildPattern($relativePath);
+                $methods = $this->extractHttpMethods($fullPath);
 
-        if (count($segments) === 1) {
-            $route = $this->matchFileInDirectory($currentPath, $currentSegment, $params);
-            if ($route) {
-                return $route;
-            }
-        }
-
-        if (!$inGroup) {
-            foreach (\scandir($currentPath) as $item) {
-                if ($item === '.' || $item === '..')
-                    continue;
-                $fullPath = $currentPath . '/' . $item;
-                if (!\is_dir($fullPath))
-                    continue;
-
-                if (\preg_match('/^\(([a-zA-Z_][a-zA-Z0-9_]*)\)$/', $item)) {
-                    $found = $this->search($segments, $fullPath, $params, true);
-                    if ($found) {
-                        return $found;
-                    }
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private function searchInGroups(array $segments, string $currentPath, array $params): ?array
-    {
-        foreach (\scandir($currentPath) as $item) {
-            if ($item === '.' || $item === '..')
-                continue;
-            $fullPath = $currentPath . '/' . $item;
-            if (!\is_dir($fullPath))
-                continue;
-
-            if (\preg_match('/^\(([a-zA-Z_][a-zA-Z0-9_]*)\)$/', $item)) {
-                $found = $this->search($segments, $fullPath, $params, true);
-                if ($found) {
-                    return $found;
-                }
-
-                $found = $this->searchInGroups($segments, $fullPath, $params);
-                if ($found) {
-                    return $found;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private function checkDirectoryRoute(string $currentPath, array $params): ?array
-    {
-        if (\is_file($currentPath . '.php')) {
-            return [
-                'file' => $currentPath . '.php',
-                'params' => $params,
-                'router_path' => \dirname($currentPath)
-            ];
-        }
-        if (\is_dir($currentPath) && \is_file("{$currentPath}/index.php")) {
-            return [
-                'file' => "{$currentPath}/index.php",
-                'params' => $params,
-                'router_path' => $currentPath
-            ];
-        }
-        return null;
-    }
-
-    private function matchFileInDirectory(string $currentPath, string $segment, array $params): ?array
-    {
-        $directFile = $currentPath . '/' . $segment . '.php';
-        if (\is_file($directFile)) {
-            return [
-                'file' => $directFile,
-                'params' => $params,
-                'router_path' => $currentPath
-            ];
-        }
-
-        $dirPath = $currentPath . '/' . $segment;
-        $indexFile = "{$dirPath}/index.php";
-        if (\is_dir($dirPath) && \is_file($indexFile)) {
-            return [
-                'file' => $indexFile,
-                'params' => $params,
-                'router_path' => $dirPath
-            ];
-        }
-
-        foreach (\scandir($currentPath) as $item) {
-            if ($item === '.' || $item === '..')
-                continue;
-            $fullPath = $currentPath . '/' . $item;
-            if (!\is_file($fullPath))
-                continue;
-
-            if (\preg_match('/^\[([a-zA-Z_][a-zA-Z0-9_]*)\]\.php$/', $item, $matches)) {
-                $newParams = $params;
-                $newParams[$matches[1]] = $segment;
-                return [
-                    'file' => $fullPath,
-                    'params' => $newParams,
-                    'router_path' => $currentPath
-                ];
-            }
-        }
-
-        foreach (\scandir($currentPath) as $item) {
-            if ($item === '.' || $item === '..')
-                continue;
-            $fullPath = $currentPath . '/' . $item;
-            if (!\is_dir($fullPath))
-                continue;
-
-            if (\preg_match('/^\[([a-zA-Z_][a-zA-Z0-9_]*)\]$/', $item, $matches)) {
-                $indexFile = "{$fullPath}/index.php";
-                if (\is_file($indexFile)) {
-                    $newParams = $params;
-                    $newParams[$matches[1]] = $segment;
-                    return [
-                        'file' => $indexFile,
-                        'params' => $newParams,
-                        'router_path' => $fullPath
+                foreach ($methods as $method) {
+                    $this->compiledRoutes[$method . '|' . $pattern] = [
+                        'file' => $fullPath,
+                        'pattern' => $pattern,
+                        'method' => $method,
+                        'regex' => $this->buildRegex($pattern),
                     ];
                 }
             }
         }
-
-        return null;
     }
 
-    private function findRootRoute(): ?array
+    private function buildPattern(string $relativePath): string
     {
-        $rootIndex = $this->routerPath . '/index.php';
-        if (\is_file($rootIndex)) {
+        $parts = \explode('/', \str_replace('\\', '/', $relativePath));
+        $segments = [];
+        $total = \count($parts);
+
+        foreach ($parts as $i => $part) {
+            $isLast = ($i === $total - 1);
+
+            if ($isLast) {
+                $fileName = \pathinfo($part, PATHINFO_FILENAME);
+
+                if ($fileName === 'index') {
+                    continue;
+                }
+
+                if (\preg_match('/^\[\.\.\.([a-zA-Z_][a-zA-Z0-9_]*)\]$/', $fileName, $m)) {
+                    $segments[] = '{' . $m[1] . ':*}';
+                } elseif (\preg_match('/^\[([a-zA-Z_][a-zA-Z0-9_]*)\]$/', $fileName, $m)) {
+                    $segments[] = '{' . $m[1] . '}';
+                } else {
+                    $segments[] = $fileName;
+                }
+            } else {
+                if (\preg_match('/^\([a-zA-Z_][a-zA-Z0-9_]*\)$/', $part)) {
+                    continue;
+                }
+
+                if (\preg_match('/^\[\.\.\.([a-zA-Z_][a-zA-Z0-9_]*)\]$/', $part, $m)) {
+                    $segments[] = '{' . $m[1] . ':*}';
+                } elseif (\preg_match('/^\[([a-zA-Z_][a-zA-Z0-9_]*)\]$/', $part, $m)) {
+                    $segments[] = '{' . $m[1] . '}';
+                } else {
+                    $segments[] = $part;
+                }
+            }
+        }
+
+        return empty($segments) ? '/' : '/' . \implode('/', $segments);
+    }
+
+    private function buildRegex(string $pattern): string
+    {
+        if ($pattern === '/') {
+            return '#^/$#';
+        }
+
+        $parts = \preg_split('/(\{[a-zA-Z_][a-zA-Z0-9_]*(?::\*)?\})/', $pattern, -1, PREG_SPLIT_DELIM_CAPTURE);
+        $regex = '';
+
+        foreach ($parts as $part) {
+            if (\preg_match('/^\{([a-zA-Z_][a-zA-Z0-9_]*):\*\}$/', $part, $m)) {
+                $regex .= '(?P<' . $m[1] . '>.+)';
+            } elseif (\preg_match('/^\{([a-zA-Z_][a-zA-Z0-9_]*)\}$/', $part, $m)) {
+                $regex .= '(?P<' . $m[1] . '>[^/]+)';
+            } else {
+                $regex .= \preg_quote($part, '#');
+            }
+        }
+
+        return '#^' . $regex . '$#';
+    }
+
+    private function sortRoutes(): void
+    {
+        \uasort($this->compiledRoutes, static function (array $a, array $b): int {
+            $aCatch = \substr_count($a['pattern'], ':*}');
+            $bCatch = \substr_count($b['pattern'], ':*}');
+
+            if ($aCatch !== $bCatch) {
+                return $aCatch - $bCatch;
+            }
+
+            $aParams = \substr_count($a['pattern'], '{');
+            $bParams = \substr_count($b['pattern'], '{');
+
+            if ($aParams !== $bParams) {
+                return $aParams - $bParams;
+            }
+
+            return \strlen($b['pattern']) - \strlen($a['pattern']);
+        });
+    }
+
+    private function extractHttpMethods(string $file): array
+    {
+        if (isset($this->methodCache[$file])) {
+            return $this->methodCache[$file];
+        }
+
+        $content = \file_get_contents($file);
+        if ($content === false) {
+            return ['GET'];
+        }
+
+        \preg_match_all('/Flow::([A-Z]+)\s*\(/', $content, $matches);
+        $methods = !empty($matches[1]) ? \array_values(\array_unique($matches[1])) : ['GET'];
+
+        $this->methodCache[$file] = $methods;
+        return $methods;
+    }
+
+    public function find(string $url, string $method = 'GET'): ?array
+    {
+        if (!$this->compiled) {
+            $this->compile();
+        }
+
+        $cacheKey = $method . '|' . $url;
+
+        if ($this->useCache && isset($this->routeCache[$cacheKey])) {
+            return $this->routeCache[$cacheKey];
+        }
+
+        $path = \trim($url, '/');
+        $path = $path === '' ? '/' : '/' . $path;
+
+        $matchedFile = null;
+        $matchedPattern = null;
+
+        foreach ($this->compiledRoutes as $key => $route) {
+            $params = [];
+            if (!$this->matchPattern($route['regex'], $path, $params)) {
+                continue;
+            }
+
+            [$routeMethod] = \explode('|', $key, 2);
+
+            if ($routeMethod === $method || $routeMethod === 'ANY') {
+                $result = [
+                    'file' => $route['file'],
+                    'params' => $params,
+                    'router_path' => \dirname($route['file']),
+                    'pattern' => $route['pattern'],
+                    'method' => $method,
+                ];
+
+                if ($this->useCache) {
+                    $this->routeCache[$cacheKey] = $result;
+                }
+
+                return $result;
+            }
+
+            if ($matchedFile === null) {
+                $matchedFile = $route['file'];
+                $matchedPattern = $route['pattern'];
+            }
+        }
+
+        if ($matchedFile !== null) {
             return [
-                'file' => $rootIndex,
+                'file' => null,
                 'params' => [],
-                'router_path' => $this->routerPath
+                'router_path' => \dirname($matchedFile),
+                'pattern' => $matchedPattern,
+                'method' => $method,
+                'method_not_allowed' => true,
+                'allowed_methods' => $this->getAllowedMethodsForPattern($matchedPattern),
             ];
         }
+
         return null;
     }
 
-    private function cacheRoute(string $key, array $routeInfo): void
+    private function getAllowedMethodsForPattern(string $pattern): array
     {
-        $this->routeCache[$key] = [
-            'data' => $routeInfo,
-            'timestamp' => \time()
-        ];
+        $allowed = [];
+
+        foreach ($this->compiledRoutes as $key => $route) {
+            if ($route['pattern'] !== $pattern) {
+                continue;
+            }
+            [$routeMethod] = \explode('|', $key, 2);
+            $allowed[] = $routeMethod;
+        }
+
+        return \array_unique($allowed);
+    }
+
+    private function matchPattern(string $regex, string $path, array &$params): bool
+    {
+        if (!\preg_match($regex, $path, $matches)) {
+            return false;
+        }
+
+        $params = \array_filter($matches, static fn($k) => !\is_numeric($k), ARRAY_FILTER_USE_KEY);
+        return true;
     }
 
     public function clearCache(): void
     {
         $this->routeCache = [];
+        $this->compiledRoutes = [];
+        $this->methodCache = [];
+        $this->compiled = false;
+
+        if (\file_exists($this->cacheFile)) {
+            \unlink($this->cacheFile);
+        }
+    }
+
+    public function disableCache(): void
+    {
+        $this->useCache = false;
+    }
+
+    public function enableCache(): void
+    {
+        $this->useCache = true;
     }
 }

@@ -2,6 +2,27 @@
 
 All notable changes to Fluxor Core will be documented in this file.
 
+## [1.0.2] - 2026-04-10
+
+### Added
+- Route compilation with persistent file-based cache
+- Catch-all parameters via `[...slug]` syntax
+- `405 Method Not Allowed` response with `Allow` header
+- Request attributes for middleware data passing
+- Route specificity ordering (static → dynamic → catch-all)
+
+### Changed
+- Router passes HTTP method to Matcher for method-aware dispatching
+- Dispatcher returns `Response` instead of sending directly
+- ErrorHandler methods return `Response` instead of calling `exit`
+- Route file `include` isolated in static closure
+- `getJsonBody()` guards against empty input
+
+### Fixed
+- `preg_quote` called before placeholder substitution breaking dynamic parameters
+- Groups `(name)` now correctly transparent in URL patterns
+- `scandir()` non-determinism resolved by compile-time sort
+
 ## [1.0.1] - 2026-04-07
 
 ### Added
@@ -32,5 +53,6 @@ All notable changes to Fluxor Core will be documented in this file.
 - Zero external dependencies
 - Global helper functions (`base_path()`, `env()`, `abort()`, etc.)
 
+[1.0.2]: https://github.com/lizzyman04/fluxor/releases/tag/1.0.2
 [1.0.1]: https://github.com/lizzyman04/fluxor/releases/tag/1.0.1
 [1.0.0]: https://github.com/lizzyman04/fluxor/releases/tag/1.0.0

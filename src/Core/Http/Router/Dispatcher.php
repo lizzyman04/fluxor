@@ -16,48 +16,34 @@ class Dispatcher
         $this->request = $request;
     }
 
-    public function dispatch(array $routeInfo): void
+    public function dispatch(array $routeInfo): Response
     {
         $this->request->setParams($routeInfo['params']);
         $this->request->setRouterPath($routeInfo['router_path']);
 
-        try {
-            $result = include $routeInfo['file'];
+        $result = (static function (string $file, Request $request) {
+            return include $file;
+        })($routeInfo['file'], $this->request);
 
-            if ($result === 1 || $result === null) {
-                $flowResponse = Flow::execute($this->request);
-                if ($flowResponse !== null) {
-                    $this->sendResponse($flowResponse);
-                }
-                return;
+        if ($result === 1 || $result === null) {
+            $flowResponse = Flow::execute($this->request);
+            if ($flowResponse !== null) {
+                return $this->normalizeResponse($flowResponse);
             }
-
-            $this->sendResponse($this->normalizeResponse($result));
-
-        } catch (\Throwable $e) {
-            throw $e;
+            throw new AppException('Route file did not produce a response');
         }
+
+        return $this->normalizeResponse($result);
     }
 
-    private function normalizeResponse($result): Response
+    private function normalizeResponse(mixed $result): Response
     {
         return match (true) {
-            \is_callable($result) => $result($this->request),
             $result instanceof Response => $result,
+            \is_callable($result) => $this->normalizeResponse($result($this->request)),
             \is_array($result) || \is_object($result) => Response::json($result),
             \is_string($result) => Response::html($result),
-            default => throw new AppException('Route must return a callable, Response, or convertible value')
+            default => throw new AppException('Route must return a Response, callable, array, or string'),
         };
-    }
-
-    private function sendResponse($response): void
-    {
-        if ($response instanceof Response) {
-            $response->send();
-        } elseif (\is_array($response) || \is_object($response)) {
-            Response::json($response)->send();
-        } elseif (\is_string($response)) {
-            echo $response;
-        }
     }
 }
