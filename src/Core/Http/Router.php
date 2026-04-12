@@ -14,6 +14,7 @@ class Router
     private array $middlewares = [];
     private Matcher $matcher;
     private ErrorHandler $errorHandler;
+    private ?Cors $cors = null;
 
     public function __construct(string $basePath = '', string $baseUrl = '')
     {
@@ -36,6 +37,11 @@ class Router
         return $this;
     }
 
+    public function setCors(Cors $cors): void
+    {
+        $this->cors = $cors;
+    }
+
     public function addMiddleware(string $name, callable $middleware): self
     {
         $this->middlewares[$name] = $middleware;
@@ -48,9 +54,9 @@ class Router
         return $this;
     }
 
-    public function dispatch(): void
+    public function dispatch(?Request $request = null): void
     {
-        $request = $this->createRequest();
+        $request = $request ?? $this->createRequest();
 
         $middlewareResponse = $this->runMiddlewares($request);
         if ($middlewareResponse !== null) {
@@ -68,6 +74,14 @@ class Router
         if (!empty($routeInfo['method_not_allowed'])) {
             $this->errorHandler->handleMethodNotAllowed($request, $routeInfo['allowed_methods'])->send();
             return;
+        }
+
+        if ($this->cors !== null) {
+            $corsResponse = $this->cors->apply($request, $routeInfo['pattern']);
+            if ($corsResponse instanceof Response) {
+                $corsResponse->send();
+                return;
+            }
         }
 
         try {

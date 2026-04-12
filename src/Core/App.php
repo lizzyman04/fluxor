@@ -27,9 +27,9 @@ class App
         }
 
         $basePath = Environment::detectBasePath($basePath);
-        $baseUrl = Environment::detectBaseUrl();
+        $baseUrl  = Environment::detectBaseUrl();
 
-        $this->app = new Application($basePath, $baseUrl);
+        $this->app  = new Application($basePath, $baseUrl);
         $this->cors = new Cors();
 
         self::$instance = $this;
@@ -182,13 +182,18 @@ class App
         try {
             $request = $this->createRequest();
 
-            $corsResponse = $this->cors->apply($request);
-            if ($corsResponse instanceof Response) {
-                $corsResponse->send();
-                return;
+            // CORS preflight para OPTIONS — responde imediatamente sem conhecer a rota
+            if ($request->method === 'OPTIONS') {
+                $corsResponse = $this->cors->apply($request);
+                if ($corsResponse instanceof Response) {
+                    $corsResponse->send();
+                    return;
+                }
             }
 
-            $this->app->getRouter()->dispatch();
+            // Para outros métodos, passa o CORS para o Router aplicar após resolver a rota
+            $this->app->getRouter()->setCors($this->cors);
+            $this->app->getRouter()->dispatch($request);
         } catch (Throwable $e) {
             $this->getExceptionHandler()->handle($e);
         }
@@ -212,30 +217,30 @@ class App
     private function createRequest(): Request
     {
         return new Request([
-            'method' => $_SERVER['REQUEST_METHOD'] ?? 'GET',
-            'path' => $this->extractUrl(),
-            'query' => $_GET,
-            'body' => $_POST,
-            'json' => $this->getJsonBody(),
-            'headers' => $this->getAllHeaders(),
-            'cookies' => $_COOKIE,
-            'files' => $_FILES,
-            'server' => $_SERVER,
-            'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+            'method'    => $_SERVER['REQUEST_METHOD'] ?? 'GET',
+            'path'      => $this->extractUrl(),
+            'query'     => $_GET,
+            'body'      => $_POST,
+            'json'      => $this->getJsonBody(),
+            'headers'   => $this->getAllHeaders(),
+            'cookies'   => $_COOKIE,
+            'files'     => $_FILES,
+            'server'    => $_SERVER,
+            'ip'        => $_SERVER['REMOTE_ADDR'] ?? '',
             'userAgent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
-            'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+            'secure'    => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
         ]);
     }
 
     private function extractUrl(): string
     {
         $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
-        $url = \parse_url($requestUri, PHP_URL_PATH) ?? '/';
+        $url        = \parse_url($requestUri, PHP_URL_PATH) ?? '/';
 
         $baseUrl = $this->app->getConfig()->get('base_url', $this->app->getBaseUrl());
         if (!empty($baseUrl)) {
             $parsedBase = \parse_url($baseUrl);
-            $basePath = $parsedBase['path'] ?? '';
+            $basePath   = $parsedBase['path'] ?? '';
             if ($basePath && \str_starts_with($url, $basePath)) {
                 $url = \substr($url, \strlen($basePath));
             }
@@ -269,7 +274,7 @@ class App
         $headers = [];
         foreach ($_SERVER as $name => $value) {
             if (\str_starts_with($name, 'HTTP_')) {
-                $headerName = \str_replace(' ', '-', \ucwords(\strtolower(\str_replace('_', ' ', \substr($name, 5)))));
+                $headerName    = \str_replace(' ', '-', \ucwords(\strtolower(\str_replace('_', ' ', \substr($name, 5)))));
                 $headers[$headerName] = $value;
             }
         }

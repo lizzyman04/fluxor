@@ -146,6 +146,7 @@ class Matcher
             if (\preg_match('/^\{([a-zA-Z_][a-zA-Z0-9_]*):\*\}$/', $part, $m)) {
                 $regex .= '(?P<' . $m[1] . '>.+)';
             } elseif (\preg_match('/^\{([a-zA-Z_][a-zA-Z0-9_]*)\}$/', $part, $m)) {
+                // Aceita qualquer caracter excepto barra — incluindo hífens, pontos, underscores
                 $regex .= '(?P<' . $m[1] . '>[^/]+)';
             } else {
                 $regex .= \preg_quote($part, '#');
@@ -188,7 +189,14 @@ class Matcher
         }
 
         \preg_match_all('/Flow::([A-Z]+)\s*\(/', $content, $matches);
-        $methods = !empty($matches[1]) ? \array_values(\array_unique($matches[1])) : ['GET'];
+
+        if (!empty($matches[1]) && \in_array('ANY', $matches[1], true)) {
+            $methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
+        } elseif (!empty($matches[1])) {
+            $methods = \array_values(\array_unique($matches[1]));
+        } else {
+            $methods = ['GET'];
+        }
 
         $this->methodCache[$file] = $methods;
         return $methods;
