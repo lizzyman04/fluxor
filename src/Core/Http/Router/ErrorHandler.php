@@ -3,6 +3,7 @@
 namespace Fluxor\Core\Http\Router;
 
 use Fluxor\App;
+use Fluxor\Core\View;
 use Fluxor\Core\Http\Request;
 use Fluxor\Core\Http\Response;
 use Fluxor\Exceptions\AppException;
@@ -68,6 +69,10 @@ class ErrorHandler
             ? ($e->getCode() ?: HttpStatusCode::INTERNAL_SERVER_ERROR)
             : HttpStatusCode::INTERNAL_SERVER_ERROR;
 
+        if ($statusCode < 400 || $statusCode > 599) {
+            $statusCode = HttpStatusCode::INTERNAL_SERVER_ERROR;
+        }
+
         $errorType = $this->getErrorTypeFromStatusCode($statusCode);
         $response = $this->findErrorHandler($errorType, $request, [
             'exception' => $e,
@@ -78,7 +83,7 @@ class ErrorHandler
             return $response;
         }
 
-        if (App::make()->isDevelopment()) {
+        if ($this->isDevelopment()) {
             return Response::json([
                 'error' => \get_class($e),
                 'message' => $e->getMessage(),
@@ -141,6 +146,16 @@ class ErrorHandler
 
     private function renderErrorPage(int $statusCode, string $message): Response
     {
+        $data = ['statusCode' => $statusCode, 'message' => $message];
+
+        if (View::exists("errors/{$statusCode}")) {
+            return Response::html(View::render("errors/{$statusCode}", $data), $statusCode);
+        }
+
+        if (View::exists('errors/common')) {
+            return Response::html(View::render('errors/common', $data), $statusCode);
+        }
+
         $candidates = [
             $this->viewsPath . "/errors/{$statusCode}.php",
             $this->viewsPath . '/errors/common.php',
@@ -149,7 +164,7 @@ class ErrorHandler
 
         foreach ($candidates as $viewFile) {
             if (\file_exists($viewFile)) {
-                return $this->renderView($viewFile, $statusCode, $message);
+                return $this->renderPhpFile($viewFile, $data, $statusCode);
             }
         }
 
@@ -159,15 +174,25 @@ class ErrorHandler
         );
     }
 
-    private function renderView(string $viewFile, int $statusCode, string $message): Response
+    private function renderPhpFile(string $file, array $data, int $statusCode): Response
     {
         \ob_start();
-        (static function (string $file, int $statusCode, string $message): void{
+        (static function (string $file, array $data): void{
+            \extract($data, EXTR_SKIP);
             include $file;
-        })($viewFile, $statusCode, $message);
+        })($file, $data);
         $content = \ob_get_clean();
 
         return Response::html($content ?: '', $statusCode);
+    }
+
+    private function isDevelopment(): bool
+    {
+        try {
+            return App::make()->isDevelopment();
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     private function getErrorTypeFromStatusCode(int $code): string
@@ -178,7 +203,7 @@ class ErrorHandler
             HttpStatusCode::FORBIDDEN => 'forbidden',
             HttpStatusCode::NOT_FOUND => 'not-found',
             HttpStatusCode::METHOD_NOT_ALLOWED => 'not-allowed',
-            419 => 'csrf-error',
+            HttpStatusCode::PAGE_EXPIRED => 'csrf-error',
             HttpStatusCode::UNPROCESSABLE_ENTITY => 'validation-error',
             HttpStatusCode::TOO_MANY_REQUESTS => 'too-many-requests',
             HttpStatusCode::INTERNAL_SERVER_ERROR => 'server-error',
@@ -197,7 +222,7 @@ class ErrorHandler
             'server-error' => HttpStatusCode::INTERNAL_SERVER_ERROR,
             'bad-request' => HttpStatusCode::BAD_REQUEST,
             'validation-error' => HttpStatusCode::UNPROCESSABLE_ENTITY,
-            'csrf-error' => 419,
+            'csrf-error' => HttpStatusCode::PAGE_EXPIRED,
             default => null,
         };
     }

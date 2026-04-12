@@ -20,23 +20,29 @@ class Flow
     private static bool $executed = false;
     private static array $patternCache = [];
     private static ?string $viewsPath = null;
+    private static ?string $currentFile = null;
 
     private const ERROR_TYPE_MAP = [
-        'bad-request' => HttpStatusCode::BAD_REQUEST,
-        'unauthorized' => HttpStatusCode::UNAUTHORIZED,
-        'payment-required' => HttpStatusCode::PAYMENT_REQUIRED,
-        'forbidden' => HttpStatusCode::FORBIDDEN,
-        'not-found' => HttpStatusCode::NOT_FOUND,
-        'not-allowed' => HttpStatusCode::METHOD_NOT_ALLOWED,
-        'not-acceptable' => HttpStatusCode::NOT_ACCEPTABLE,
-        'conflict' => HttpStatusCode::CONFLICT,
-        'gone' => HttpStatusCode::GONE,
-        'too-many-requests' => HttpStatusCode::TOO_MANY_REQUESTS,
-        'server-error' => HttpStatusCode::INTERNAL_SERVER_ERROR,
-        'service-unavailable' => HttpStatusCode::SERVICE_UNAVAILABLE,
-        'validation-error' => HttpStatusCode::UNPROCESSABLE_ENTITY,
-        'csrf-error' => 419,
+        'bad-request'        => HttpStatusCode::BAD_REQUEST,
+        'unauthorized'       => HttpStatusCode::UNAUTHORIZED,
+        'payment-required'   => HttpStatusCode::PAYMENT_REQUIRED,
+        'forbidden'          => HttpStatusCode::FORBIDDEN,
+        'not-found'          => HttpStatusCode::NOT_FOUND,
+        'not-allowed'        => HttpStatusCode::METHOD_NOT_ALLOWED,
+        'not-acceptable'     => HttpStatusCode::NOT_ACCEPTABLE,
+        'conflict'           => HttpStatusCode::CONFLICT,
+        'gone'               => HttpStatusCode::GONE,
+        'too-many-requests'  => HttpStatusCode::TOO_MANY_REQUESTS,
+        'server-error'       => HttpStatusCode::INTERNAL_SERVER_ERROR,
+        'service-unavailable'=> HttpStatusCode::SERVICE_UNAVAILABLE,
+        'validation-error'   => HttpStatusCode::UNPROCESSABLE_ENTITY,
+        'csrf-error'         => 419,
     ];
+
+    public static function setCurrentFile(string $file): void
+    {
+        self::$currentFile = \str_replace('\\', '/', $file);
+    }
 
     public static function setViewsPath(string $path): void
     {
@@ -66,13 +72,13 @@ class Flow
         $this->validateMethod();
 
         $pattern = $this->detectPatternFromFile();
-        $key = self::buildKey(self::$currentMethod, $pattern);
+        $key     = self::buildKey(self::$currentMethod, $pattern);
 
         self::$handlers[$key] = [
             'handler' => $handler,
-            'method' => self::$currentMethod,
+            'method'  => self::$currentMethod,
             'pattern' => $pattern,
-            'name' => self::$currentName,
+            'name'    => self::$currentName,
         ];
 
         $this->resetState();
@@ -111,9 +117,9 @@ class Flow
     {
         self::$handlers['ANY'] = [
             'handler' => $handler,
-            'method' => 'ANY',
+            'method'  => 'ANY',
             'pattern' => null,
-            'name' => null,
+            'name'    => null,
         ];
     }
 
@@ -128,7 +134,7 @@ class Flow
 
         if ($config !== null) {
             $instance = new static();
-            $pattern = $instance->detectPatternFromFile();
+            $pattern  = $instance->detectPatternFromFile();
 
             if ($pattern && $pattern !== '/') {
                 $cors->forRoute($pattern, $config);
@@ -162,8 +168,8 @@ class Flow
 
         if ($handler) {
             try {
-                $response = $handler($request);
-                self::$executed = true;
+                $response        = $handler($request);
+                self::$executed  = true;
                 return $response;
             } catch (NotFoundException $e) {
                 return self::handleNotFound($request, $e);
@@ -180,7 +186,7 @@ class Flow
 
     private static function resetForNewRequest(): void
     {
-        if (\php_sapi_name() === 'cli' || defined('PHPUNIT_RUNNING')) {
+        if (\php_sapi_name() === 'cli' || \defined('PHPUNIT_RUNNING')) {
             return;
         }
 
@@ -193,10 +199,10 @@ class Flow
 
     private static function findHandler(Request $request): ?callable
     {
-        $method = $request->method;
-        $path = $request->path;
-
+        $method   = $request->method;
+        $path     = $request->path;
         $exactKey = self::buildKey($method, $path);
+
         if (isset(self::$handlers[$exactKey])) {
             return self::$handlers[$exactKey]['handler'];
         }
@@ -206,7 +212,7 @@ class Flow
                 continue;
             }
 
-            if (!isset($route['pattern']) || !$route['pattern']) {
+            if (empty($route['pattern'])) {
                 continue;
             }
 
@@ -225,11 +231,18 @@ class Flow
 
     private static function matchesPattern(string $pattern, string $path, ?array &$params = []): bool
     {
-        $regex = \preg_quote($pattern, '#');
+        $parts = \preg_split('/(\{[a-zA-Z_][a-zA-Z0-9_]*(?::\*)?\})/', $pattern, -1, PREG_SPLIT_DELIM_CAPTURE);
+        $regex = '';
 
-        $regex = \preg_replace_callback('/\\\\\[([a-zA-Z_][a-zA-Z0-9_]*)\\\\\]/', function ($matches) {
-            return '(?P<' . $matches[1] . '>[^/]+)';
-        }, $regex);
+        foreach ($parts as $part) {
+            if (\preg_match('/^\{([a-zA-Z_][a-zA-Z0-9_]*):\*\}$/', $part, $m)) {
+                $regex .= '(?P<' . $m[1] . '>.+)';
+            } elseif (\preg_match('/^\{([a-zA-Z_][a-zA-Z0-9_]*)\}$/', $part, $m)) {
+                $regex .= '(?P<' . $m[1] . '>[^/]+)';
+            } else {
+                $regex .= \preg_quote($part, '#');
+            }
+        }
 
         $regex = '#^' . $regex . '$#';
 
@@ -243,10 +256,8 @@ class Flow
 
     private function detectPatternFromFile(): string
     {
-        $trace = \debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
-
         try {
-            $app = App::make();
+            $app        = App::make();
             $routerPath = $app->getConfig()['router_path'] ?? $app->getBasePath() . '/app/router';
             if (self::$viewsPath === null) {
                 self::$viewsPath = $app->getConfig()['views_path'] ?? $app->getBasePath() . '/src/Views';
@@ -257,50 +268,74 @@ class Flow
 
         $routerPath = \rtrim(\str_replace('\\', '/', $routerPath), '/');
 
+        // Usa o ficheiro definido pelo Dispatcher — sem debug_backtrace
+        $file = self::$currentFile;
+
+        // Fallback para backtrace (ex: quando Flow é usado fora do Dispatcher)
+        if ($file === null || !\str_starts_with($file, $routerPath)) {
+            $file = $this->detectFileFromBacktrace($routerPath);
+        }
+
+        if ($file === null) {
+            return '/';
+        }
+
+        return $this->buildPatternFromFile($file, $routerPath);
+    }
+
+    private function detectFileFromBacktrace(string $routerPath): ?string
+    {
+        $trace = \debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+
         foreach ($trace as $frame) {
             if (!isset($frame['file'])) {
                 continue;
             }
 
             $file = \str_replace('\\', '/', $frame['file']);
-            if (\strpos($file, $routerPath) !== 0) {
-                continue;
+
+            if (\str_starts_with($file, $routerPath)) {
+                return $file;
             }
-
-            $relativePath = \substr($file, \strlen($routerPath) + 1);
-            $pathParts = \explode('/', $relativePath);
-            $fileName = \array_pop($pathParts);
-            $fileName = \basename($fileName, '.php');
-
-            $filteredParts = \array_filter($pathParts, function ($part) {
-                return !\preg_match('/^\([^)]+\)$/', $part);
-            });
-
-            if (empty($filteredParts)) {
-                return ($fileName === 'index') ? '/' : '/' . $fileName;
-            }
-
-            $pattern = '/' . \implode('/', \array_map(function ($part) {
-                return \preg_replace_callback('/\[([a-zA-Z_][a-zA-Z0-9_]*)\]/', function ($matches) {
-                    return '{' . $matches[1] . '}';
-                }, $part);
-            }, $filteredParts));
-
-            if ($fileName !== 'index') {
-                $pattern .= '/' . $fileName;
-            }
-
-            return $pattern;
         }
 
-        return '/';
+        return null;
+    }
+
+    private function buildPatternFromFile(string $file, string $routerPath): string
+    {
+        $relativePath = \substr($file, \strlen($routerPath) + 1);
+        $pathParts    = \explode('/', $relativePath);
+        $fileName     = \basename(\array_pop($pathParts), '.php');
+
+        $filteredParts = \array_values(\array_filter($pathParts, static function (string $part): bool {
+            return !\preg_match('/^\([^)]+\)$/', $part);
+        }));
+
+        $segmentMapper = static function (string $part): string {
+            return \preg_replace_callback('/\[([a-zA-Z_][a-zA-Z0-9_]*)\]/', static function (array $m): string {
+                return '{' . $m[1] . '}';
+            }, $part);
+        };
+
+        if (empty($filteredParts)) {
+            return $fileName === 'index' ? '/' : '/' . $fileName;
+        }
+
+        $pattern = '/' . \implode('/', \array_map($segmentMapper, $filteredParts));
+
+        if ($fileName !== 'index') {
+            $pattern .= '/' . $fileName;
+        }
+
+        return $pattern;
     }
 
     private static function handleNotFound(Request $request, ?NotFoundException $e = null)
     {
         $response = self::findErrorHandler('not-found', $request, [
             'requested_path' => $request->path,
-            'exception' => $e,
+            'exception'      => $e,
         ]);
 
         if ($response) {
@@ -317,10 +352,10 @@ class Flow
     private static function handleHttpException(Request $request, HttpException $e)
     {
         $statusCode = $e->getStatusCode();
-        $errorType = self::getErrorTypeFromStatusCode($statusCode);
+        $errorType  = self::getErrorTypeFromStatusCode($statusCode);
 
         $response = self::findErrorHandler($errorType, $request, [
-            'exception' => $e,
+            'exception'   => $e,
             'status_code' => $statusCode,
         ]);
 
@@ -349,11 +384,11 @@ class Flow
 
         if ($app && $app->isDevelopment()) {
             return Response::json([
-                'error' => \get_class($e),
+                'error'   => \get_class($e),
                 'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTrace(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+                'trace'   => $e->getTrace(),
             ], $statusCode);
         }
 
@@ -364,38 +399,28 @@ class Flow
     {
         if (self::$viewsPath === null) {
             try {
-                $app = App::make();
+                $app             = App::make();
                 self::$viewsPath = $app->getConfig()['views_path'] ?? $app->getBasePath() . '/src/Views';
             } catch (\Throwable $e) {
                 self::$viewsPath = \getcwd() . '/src/Views';
             }
         }
 
-        $userView = self::$viewsPath . "/errors/{$statusCode}.php";
-        if (\file_exists($userView)) {
-            \ob_start();
-            \extract(['statusCode' => $statusCode, 'message' => $message]);
-            include $userView;
-            $content = \ob_get_clean();
-            return Response::html($content, $statusCode);
-        }
+        $candidates = [
+            self::$viewsPath . "/errors/{$statusCode}.php",
+            self::$viewsPath . '/errors/common.php',
+            \dirname(__DIR__, 2) . '/Resources/views/errors/common.php',
+        ];
 
-        $userCommonView = self::$viewsPath . "/errors/common.php";
-        if (\file_exists($userCommonView)) {
-            \ob_start();
-            \extract(['statusCode' => $statusCode, 'message' => $message]);
-            include $userCommonView;
-            $content = \ob_get_clean();
-            return Response::html($content, $statusCode);
-        }
-
-        $vendorView = \dirname(__DIR__, 2) . '/Resources/views/errors/common.php';
-        if (\file_exists($vendorView)) {
-            \ob_start();
-            \extract(['statusCode' => $statusCode, 'message' => $message]);
-            include $vendorView;
-            $content = \ob_get_clean();
-            return Response::html($content, $statusCode);
+        foreach ($candidates as $viewFile) {
+            if (\file_exists($viewFile)) {
+                \ob_start();
+                (static function (string $f, int $statusCode, string $message): void {
+                    \extract(['statusCode' => $statusCode, 'message' => $message]);
+                    include $f;
+                })($viewFile, $statusCode, $message);
+                return Response::html(\ob_get_clean(), $statusCode);
+            }
         }
 
         return Response::text("{$statusCode}\n" . \htmlspecialchars($message), $statusCode);
@@ -404,8 +429,8 @@ class Flow
     private static function findErrorHandler(string $type, Request $request, array $context = [])
     {
         try {
-            $app = App::make();
-            $config = $app->getConfig();
+            $app        = App::make();
+            $config     = $app->getConfig();
             $routerPath = $config['router_path'] ?? '';
         } catch (\Throwable $e) {
             $routerPath = '';
@@ -414,21 +439,15 @@ class Flow
         $currentPath = $request->getRouterPath();
 
         while ($currentPath && $currentPath !== $routerPath && $currentPath !== \dirname($currentPath)) {
-            $errorFile = $currentPath . '/' . $type . '.php';
-
-            if (\file_exists($errorFile)) {
-                $handler = include $errorFile;
-                if (\is_callable($handler)) {
-                    $request->setParams([...$request->params, ...$context]);
-                    return $handler($request);
+            foreach ([$type, self::getStatusCodeFromType($type)] as $name) {
+                if (!$name) {
+                    continue;
                 }
-            }
 
-            $statusCode = self::getStatusCodeFromType($type);
-            if ($statusCode) {
-                $statusFile = $currentPath . '/' . $statusCode . '.php';
-                if (\file_exists($statusFile)) {
-                    $handler = include $statusFile;
+                $errorFile = $currentPath . '/' . $name . '.php';
+
+                if (\file_exists($errorFile)) {
+                    $handler = include $errorFile;
                     if (\is_callable($handler)) {
                         $request->setParams([...$request->params, ...$context]);
                         return $handler($request);
@@ -511,17 +530,18 @@ class Flow
     private function resetState(): void
     {
         self::$currentMethod = null;
-        self::$currentName = null;
+        self::$currentName   = null;
     }
 
     public static function clear(): void
     {
-        self::$handlers = [];
-        self::$middlewares = [];
-        self::$patternCache = [];
+        self::$handlers      = [];
+        self::$middlewares   = [];
+        self::$patternCache  = [];
         self::$currentMethod = null;
-        self::$currentName = null;
-        self::$executed = false;
+        self::$currentName   = null;
+        self::$currentFile   = null;
+        self::$executed      = false;
     }
 
     public static function getRoutes(): array

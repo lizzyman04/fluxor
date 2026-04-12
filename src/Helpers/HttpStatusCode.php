@@ -66,6 +66,7 @@ class HttpStatusCode
     public const RANGE_NOT_SATISFIABLE = 416;
     public const EXPECTATION_FAILED = 417;
     public const IM_A_TEAPOT = 418;
+    public const PAGE_EXPIRED = 419;
     public const MISDIRECTED_REQUEST = 421;
     public const UNPROCESSABLE_ENTITY = 422;
     public const LOCKED = 423;
@@ -165,6 +166,7 @@ class HttpStatusCode
             self::RANGE_NOT_SATISFIABLE => 'Range Not Satisfiable',
             self::EXPECTATION_FAILED => 'Expectation Failed',
             self::IM_A_TEAPOT => 'I\'m a teapot',
+            self::PAGE_EXPIRED => 'Page Expired',
             self::MISDIRECTED_REQUEST => 'Misdirected Request',
             self::UNPROCESSABLE_ENTITY => 'Unprocessable Entity',
             self::LOCKED => 'Locked',

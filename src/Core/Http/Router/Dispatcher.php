@@ -21,6 +21,8 @@ class Dispatcher
         $this->request->setParams($routeInfo['params']);
         $this->request->setRouterPath($routeInfo['router_path']);
 
+        Flow::setCurrentFile($routeInfo['file']);
+
         $result = (static function (string $file, Request $request) {
             return include $file;
         })($routeInfo['file'], $this->request);

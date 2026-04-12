@@ -2,7 +2,7 @@
 
 All notable changes to Fluxor Core will be documented in this file.
 
-## [1.0.2] - 2026-04-10
+## [1.0.2] - 2026-04-12
 
 ### Added
 - Route compilation with persistent file-based cache
@@ -19,6 +19,7 @@ All notable changes to Fluxor Core will be documented in this file.
 - `getJsonBody()` guards against empty input
 
 ### Fixed
+- `Flow::matchesPattern()` failing to match `{param}` patterns registered by new Matcher
 - `preg_quote` called before placeholder substitution breaking dynamic parameters
 - Groups `(name)` now correctly transparent in URL patterns
 - `scandir()` non-determinism resolved by compile-time sort
@@ -41,7 +42,7 @@ All notable changes to Fluxor Core will be documented in this file.
 - Headers already sent warning in ExceptionHandler
 - Nullable parameter type in Response::download()
 
-## [1.0.0] - 2026-03-25
+## [1.0.0] - 2026-03-20
 
 ### Added
 - File-based routing inspired by Next.js
