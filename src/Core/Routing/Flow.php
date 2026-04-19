@@ -313,19 +313,24 @@ class Flow
         }));
 
         $segmentMapper = static function (string $part): string {
+            $part = \preg_replace_callback('/\[\.\.\.([a-zA-Z_][a-zA-Z0-9_]*)\]/', static function (array $m): string {
+                return '{' . $m[1] . ':*}';
+            }, $part);
             return \preg_replace_callback('/\[([a-zA-Z_][a-zA-Z0-9_]*)\]/', static function (array $m): string {
                 return '{' . $m[1] . '}';
             }, $part);
         };
 
+        $mappedFileName = $segmentMapper($fileName);
+
         if (empty($filteredParts)) {
-            return $fileName === 'index' ? '/' : '/' . $fileName;
+            return $mappedFileName === 'index' ? '/' : '/' . $mappedFileName;
         }
 
         $pattern = '/' . \implode('/', \array_map($segmentMapper, $filteredParts));
 
-        if ($fileName !== 'index') {
-            $pattern .= '/' . $fileName;
+        if ($mappedFileName !== 'index') {
+            $pattern .= '/' . $mappedFileName;
         }
 
         return $pattern;

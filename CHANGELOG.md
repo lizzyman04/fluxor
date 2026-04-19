@@ -2,7 +2,7 @@
 
 All notable changes to Fluxor Core will be documented in this file.
 
-## [1.0.2] - 2026-04-12
+## [1.0.2] - 2026-04-19
 
 ### Added
 - Route compilation with persistent file-based cache
@@ -14,6 +14,7 @@ All notable changes to Fluxor Core will be documented in this file.
 ### Changed
 - Router passes HTTP method to Matcher for method-aware dispatching
 - Dispatcher returns `Response` instead of sending directly
+- Apply segmentMapper to filename in buildPatternFromFile()
 - ErrorHandler methods return `Response` instead of calling `exit`
 - Route file `include` isolated in static closure
 - `getJsonBody()` guards against empty input
