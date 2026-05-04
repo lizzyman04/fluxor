@@ -168,6 +168,12 @@ class App
         return $this->getEnvironment() === 'development';
     }
 
+    public function isDebug(): bool
+    {
+        $this->ensureBooted();
+        return (bool) $this->app->getConfig()->get('debug', false);
+    }
+
     public function isProduction(): bool
     {
         return $this->getEnvironment() === 'production';
@@ -202,7 +208,7 @@ class App
     private function getExceptionHandler(): ExceptionHandler
     {
         if (!$this->exceptionHandler) {
-            $this->exceptionHandler = new ExceptionHandler($this->isDevelopment());
+            $this->exceptionHandler = new ExceptionHandler($this->isDebug());
         }
         return $this->exceptionHandler;
     }
