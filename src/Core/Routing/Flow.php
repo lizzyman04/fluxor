@@ -172,10 +172,13 @@ class Flow
                 self::$executed  = true;
                 return $response;
             } catch (NotFoundException $e) {
+                self::$executed = true;
                 return self::handleNotFound($request, $e);
             } catch (HttpException $e) {
+                self::$executed = true;
                 return self::handleHttpException($request, $e);
             } catch (\Throwable $e) {
+                self::$executed = true;
                 return self::handleError($request, $e);
             }
         }

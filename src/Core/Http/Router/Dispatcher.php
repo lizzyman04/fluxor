@@ -18,6 +18,8 @@ class Dispatcher
 
     public function dispatch(array $routeInfo): Response
     {
+        Flow::clear();
+
         $this->request->setParams($routeInfo['params']);
         $this->request->setRouterPath($routeInfo['router_path']);
 
