@@ -16,9 +16,10 @@ class Application
 
     public function __construct(string $basePath, string $baseUrl)
     {
-        $this->basePath = $basePath;
-        $this->baseUrl = $baseUrl;
+        $this->basePath  = $basePath;
+        $this->baseUrl   = $baseUrl;
         $this->container = new ServiceContainer();
+        Environment::loadEnvironment($basePath);
         $this->config = Config::createDefault($basePath, $baseUrl);
     }
 
@@ -27,8 +28,6 @@ class Application
         if ($this->booted) {
             return;
         }
-
-        Environment::loadEnvironment($this->basePath);
 
         Environment::configureRuntime(
             $this->config->get('environment'),
