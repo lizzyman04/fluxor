@@ -24,6 +24,10 @@ class Matcher
             return;
         }
 
+        if (env('DISABLE_FLUXOR_CACHE', false)) {
+            $this->useCache = false;
+        }
+
         if ($this->useCache && \file_exists($this->cacheFile)) {
             $cached = include $this->cacheFile;
             if (\is_array($cached) && isset($cached['routes'], $cached['methods'])) {
@@ -310,5 +314,13 @@ class Matcher
     public function enableCache(): void
     {
         $this->useCache = true;
+    }
+
+    public static function clearRouterCache(): void
+    {
+        $pattern = \sys_get_temp_dir() . '/fluxor_routes_*.php';
+        foreach (\glob($pattern) as $file) {
+            \unlink($file);
+        }
     }
 }

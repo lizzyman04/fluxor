@@ -39,6 +39,9 @@
             "src/Helpers/Functions.php"
         ]
     },
+    "scripts": {
+        "clear-router-cache": "php -r \"require 'vendor/autoload.php'; \\Fluxor\\Core\\Http\\Router\\Matcher::clearRouterCache();\""
+    },
     "minimum-stability": "stable",
     "prefer-stable": true,
     "version": "1.0.2"
