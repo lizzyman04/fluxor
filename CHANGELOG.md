@@ -2,6 +2,23 @@
 
 All notable changes to Fluxor Core will be documented in this file.
 
+## [1.0.3] - 2026-05-07
+
+### Added
+- Router cache management with `DISABLE_FLUXOR_CACHE` env var
+- `composer clear-router-cache` command to manually clear route cache
+- `App::isDebug()` method independent from `isDevelopment()`
+- HTML dev error page with full stack trace when `APP_ENV=development` AND `APP_DEBUG=true`
+
+### Fixed
+- Flow state accumulation between requests (handlers now cleared per dispatch)
+- `.env` variables not loaded before Config creation (APP_ENV/APP_DEBUG now read correctly)
+- `$executed` flag not set on exception paths
+- Missing stack trace output in CLI development server
+
+### Changed
+- Error page HTML moved from PHP class to view template (`src/Core/Resources/views/errors/dev.php`)
+
 ## [1.0.2] - 2026-04-19
 
 ### Added
@@ -55,6 +72,7 @@ All notable changes to Fluxor Core will be documented in this file.
 - Zero external dependencies
 - Global helper functions (`base_path()`, `env()`, `abort()`, etc.)
 
+[1.0.3]: https://github.com/lizzyman04/fluxor/releases/tag/1.0.3
 [1.0.2]: https://github.com/lizzyman04/fluxor/releases/tag/1.0.2
 [1.0.1]: https://github.com/lizzyman04/fluxor/releases/tag/1.0.1
 [1.0.0]: https://github.com/lizzyman04/fluxor/releases/tag/1.0.0
