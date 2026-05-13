@@ -53,7 +53,7 @@ class View
     {
         try {
             $viewFile = self::resolveViewPath($view);
-            $allData = [...self::$shared, ...$data];
+            $allData = [...self::$shared, ...$data, self::$currentData];
 
             $previousData = self::$currentData;
             self::$currentData = $allData;
@@ -70,18 +70,12 @@ class View
             }
             $content = \ob_get_clean();
 
-            $pendingLayouts = self::$extendedLayouts;
-            $savedSections = self::$sections;
-            self::$extendedLayouts = [];
-
-            foreach ($pendingLayouts as $layout) {
-                if ($content !== '') {
-                    self::$sections['content'] = $content;
-                }
+            while (!empty(self::$extendedLayouts)) {
+                $layout = array_pop(self::$extendedLayouts);
                 $content = self::render($layout, $allData);
+                self::$sections['content'] = $content;
             }
 
-            self::$sections = $savedSections;
             self::$currentData = $previousData;
             return $content;
 
@@ -146,17 +140,7 @@ class View
 
     public static function include(string $view, array $data = []): void
     {
-        try {
-            $viewFile = self::resolveViewPath($view);
-            $allData = [...self::$shared, ...self::$currentData, ...$data];
-            \extract($allData, EXTR_SKIP);
-            include $viewFile;
-        } catch (\Throwable $e) {
-            if (self::isDebugMode()) {
-                throw $e;
-            }
-            \error_log("[Fluxor View Error] {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}");
-        }
+        echo self::render($view, [...self::$currentData, ...$data]);
     }
 
     public static function escape(string $value): string
