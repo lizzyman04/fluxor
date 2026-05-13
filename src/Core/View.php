@@ -53,10 +53,14 @@ class View
     {
         try {
             $viewFile = self::resolveViewPath($view);
-            $allData = [...self::$shared, ...$data, self::$currentData];
+            $allData = [...self::$shared, ...self::$currentData, ...$data];
 
-            $previousData = self::$currentData;
-            self::$currentData = $allData;
+            $previousData    = self::$currentData;
+            $previousLayouts = self::$extendedLayouts;
+            self::$currentData     = $allData;
+            self::$extendedLayouts = [];
+
+            $contentBefore = self::$sections['content'] ?? null;
 
             \extract($allData, EXTR_SKIP);
 
@@ -65,19 +69,26 @@ class View
                 include $viewFile;
             } catch (\Throwable $e) {
                 \ob_end_clean();
-                self::$currentData = $previousData;
+                self::$currentData     = $previousData;
+                self::$extendedLayouts = $previousLayouts;
                 throw new AppException("View rendering failed: {$e->getMessage()} in {$view}", 0, $e);
             }
             $content = \ob_get_clean();
 
+            $contentAfter = self::$sections['content'] ?? null;
+            $layoutContent = ($contentAfter !== null && $contentAfter !== $contentBefore)
+                ? $contentAfter
+                : $content;
+
             while (!empty(self::$extendedLayouts)) {
-                $layout = array_pop(self::$extendedLayouts);
-                $content = self::render($layout, $allData);
-                self::$sections['content'] = $content;
+                $layout = \array_shift(self::$extendedLayouts);
+                self::$sections['content'] = $layoutContent;
+                $layoutContent = self::render($layout, $allData);
             }
 
-            self::$currentData = $previousData;
-            return $content;
+            self::$currentData     = $previousData;
+            self::$extendedLayouts = $previousLayouts;
+            return $layoutContent;
 
         } catch (\Throwable $e) {
             if (self::isDebugMode()) {
