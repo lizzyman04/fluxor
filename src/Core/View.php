@@ -237,7 +237,7 @@ class View
     private static function isDebugMode(): bool
     {
         $app = self::$app ?? App::getInstance();
-        return $app ? $app->isDevelopment() : true;
+        return $app ? $app->isDebug() : true;
     }
 
     public static function clear(): void
