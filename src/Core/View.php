@@ -149,10 +149,8 @@ class View
         try {
             $viewFile = self::resolveViewPath($view);
             $allData = [...self::$shared, ...self::$currentData, ...$data];
-            (static function () use ($viewFile, $allData): void {
-                \extract($allData, EXTR_SKIP);
-                include $viewFile;
-            })();
+            \extract($allData, EXTR_SKIP);
+            include $viewFile;
         } catch (\Throwable $e) {
             if (self::isDebugMode()) {
                 throw $e;
