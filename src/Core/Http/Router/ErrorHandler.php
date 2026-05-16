@@ -47,9 +47,11 @@ class ErrorHandler
 
     public function handleMethodNotAllowed(Request $request, array $allowedMethods): Response
     {
-        $response = $this->findErrorHandler('not-allowed', $request, [
+        $startPath = $this->routerPath . '/' . ltrim($request->path, '/');
+        $response  = $this->findErrorHandler('not-allowed', $request, [
             'allowed_methods' => $allowedMethods,
-        ]);
+            'status_code'     => 405,
+        ], $startPath);
 
         if ($response !== null) {
             return $response;
