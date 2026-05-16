@@ -7,6 +7,7 @@ use Fluxor\Core\View;
 use Fluxor\Core\Http\Request;
 use Fluxor\Core\Http\Response;
 use Fluxor\Exceptions\AppException;
+use Fluxor\Exceptions\NotFoundException;
 use Fluxor\Helpers\HttpStatusCode;
 
 class ErrorHandler
@@ -20,9 +21,14 @@ class ErrorHandler
         $this->viewsPath = $viewsPath;
     }
 
-    public function handleNotFound(Request $request): Response
+    public function handleNotFound(Request $request, ?NotFoundException $e = null): Response
     {
-        $response = $this->findErrorHandler('not-found', $request, ['requested_path' => $request->path]);
+        $startPath = $this->routerPath . '/' . ltrim($request->path, '/');
+        $response  = $this->findErrorHandler('not-found', $request, [
+            'requested_path' => $request->path,
+            'exception'      => $e,
+            'status_code'    => 404,
+        ], $startPath);
 
         if ($response !== null) {
             return $response;
