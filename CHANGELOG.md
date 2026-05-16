@@ -2,6 +2,16 @@
 
 All notable changes to Fluxor Core will be documented in this file.
 
+## [1.0.4] - 2026-05-16
+
+### Fixed
+- `View::render()` layout stack isolated per call, preventing state leakage across nested renders
+- `View::include()` output capture and rendering logic corrected
+- Data inheritance across layout chain fixed
+- `View::isDebugMode()` now uses `App::isDebug()` instead of `App::isDevelopment()`
+- `handleNotFound()` passes request URL path to `findErrorHandler()`, enabling scoped `404.php` handlers (e.g. `app/router/api/404.php`)
+- `handleMethodNotAllowed()` passes request URL path to `findErrorHandler()`, enabling scoped `405.php` / `not-allowed.php` handlers
+
 ## [1.0.3] - 2026-05-07
 
 ### Added
@@ -15,9 +25,6 @@ All notable changes to Fluxor Core will be documented in this file.
 - `.env` variables not loaded before Config creation (APP_ENV/APP_DEBUG now read correctly)
 - `$executed` flag not set on exception paths
 - Missing stack trace output in CLI development server
-
-### Changed
-- Error page HTML moved from PHP class to view template (`src/Core/Resources/views/errors/dev.php`)
 
 ## [1.0.2] - 2026-04-19
 
@@ -72,6 +79,7 @@ All notable changes to Fluxor Core will be documented in this file.
 - Zero external dependencies
 - Global helper functions (`base_path()`, `env()`, `abort()`, etc.)
 
+[1.0.4]: https://github.com/lizzyman04/fluxor/releases/tag/1.0.4
 [1.0.3]: https://github.com/lizzyman04/fluxor/releases/tag/1.0.3
 [1.0.2]: https://github.com/lizzyman04/fluxor/releases/tag/1.0.2
 [1.0.1]: https://github.com/lizzyman04/fluxor/releases/tag/1.0.1
