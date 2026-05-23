@@ -2,6 +2,8 @@
 
 namespace Fluxor\Core\Http\Router;
 
+use Fluxor\Core\App;
+
 class Matcher
 {
     private string $routerPath;
@@ -15,7 +17,19 @@ class Matcher
     public function __construct(string $routerPath)
     {
         $this->routerPath = \rtrim(\str_replace('\\', '/', $routerPath), '/');
-        $this->cacheFile = \sys_get_temp_dir() . '/fluxor_routes_' . \md5($this->routerPath) . '.php';
+        $this->cacheFile = $this->getCacheFile();
+    }
+
+    private function getCacheFile(): string
+    {
+        $storagePath = App::getInstance() ? App::getInstance()->getStoragePath() : \getcwd() . '/storage';
+        $cacheDir = $storagePath . '/cache';
+
+        if (!\is_dir($cacheDir)) {
+            \mkdir($cacheDir, 0755, true);
+        }
+
+        return $cacheDir . '/fluxor_routes_' . \md5($this->routerPath) . '.php';
     }
 
     public function compile(): void
@@ -321,6 +335,16 @@ class Matcher
         $pattern = \sys_get_temp_dir() . '/fluxor_routes_*.php';
         foreach (\glob($pattern) as $file) {
             \unlink($file);
+        }
+
+        $app = App::getInstance();
+        $storagePath = $app ? $app->getStoragePath() : \getcwd() . '/storage';
+        $cacheDir = $storagePath . '/cache';
+
+        if (\is_dir($cacheDir)) {
+            foreach (\glob($cacheDir . '/fluxor_routes_*.php') as $file) {
+                \unlink($file);
+            }
         }
     }
 }

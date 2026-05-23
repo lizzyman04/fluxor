@@ -40,7 +40,7 @@
         ]
     },
     "scripts": {
-        "clear-router-cache": "php -r \"require 'vendor/autoload.php'; \\Fluxor\\Core\\Http\\Router\\Matcher::clearRouterCache();\""
+        "clear-router-cache": "php -r \"if (file_exists('vendor/autoload.php')) { require 'vendor/autoload.php'; \\Fluxor\\Core\\Http\\Router\\Matcher::clearRouterCache(); } else { echo 'Run from project root'; exit(1); }\""
     },
     "minimum-stability": "stable",
     "prefer-stable": true,

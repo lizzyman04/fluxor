@@ -152,6 +152,11 @@ class App
         return $this->app->getBasePath();
     }
 
+    public function getStoragePath(): string
+    {
+        return $this->app->getBasePath() . '/storage';
+    }
+
     public function getBaseUrl(): string
     {
         return $this->app->getBaseUrl();
