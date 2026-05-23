@@ -2,6 +2,12 @@
 
 All notable changes to Fluxor Core will be documented in this file.
 
+## [1.0.5] - 2026-05-23
+
+### Fixed
+- Route cache stored in project `storage/cache/` instead of `/tmp/`, preventing conflicts between multiple simultaneous Fluxor projects
+- `composer clear-router-cache` now works from any subdirectory via `bin/fluxor` CLI that traverses up to locate `vendor/autoload.php`
+
 ## [1.0.4] - 2026-05-16
 
 ### Fixed
@@ -79,6 +85,7 @@ All notable changes to Fluxor Core will be documented in this file.
 - Zero external dependencies
 - Global helper functions (`base_path()`, `env()`, `abort()`, etc.)
 
+[1.0.5]: https://github.com/lizzyman04/fluxor/releases/tag/1.0.5
 [1.0.4]: https://github.com/lizzyman04/fluxor/releases/tag/1.0.4
 [1.0.3]: https://github.com/lizzyman04/fluxor/releases/tag/1.0.3
 [1.0.2]: https://github.com/lizzyman04/fluxor/releases/tag/1.0.2
