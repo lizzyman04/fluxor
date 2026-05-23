@@ -1,0 +1,34 @@
+#!/usr/bin/env php
+<?php
+
+$silent = in_array('--silent', $argv, true);
+
+// Traverse up from cwd to find vendor/autoload.php
+$dir = getcwd();
+while (!file_exists($dir . '/vendor/autoload.php') && $dir !== '/') {
+    $dir = dirname($dir);
+}
+
+if (!file_exists($dir . '/vendor/autoload.php')) {
+    fwrite(STDERR, "Unable to locate vendor/autoload.php\n");
+    exit(1);
+}
+
+require $dir . '/vendor/autoload.php';
+
+$command = $argv[1] ?? null;
+
+switch ($command) {
+    case 'clear-router-cache':
+        \Fluxor\Core\Http\Router\Matcher::clearRouterCache();
+        if (!$silent) {
+            echo "Route cache cleared.\n";
+        }
+        break;
+
+    default:
+        fwrite(STDERR, "Unknown command: {$command}\n");
+        fwrite(STDERR, "Available commands:\n");
+        fwrite(STDERR, "  clear-router-cache [--silent]\n");
+        exit(1);
+}

@@ -39,8 +39,11 @@
             "src/Helpers/Functions.php"
         ]
     },
+    "bin": [
+        "bin/fluxor"
+    ],
     "scripts": {
-        "clear-router-cache": "php -r \"if (file_exists('vendor/autoload.php')) { require 'vendor/autoload.php'; \\Fluxor\\Core\\Http\\Router\\Matcher::clearRouterCache(); } else { echo 'Run from project root'; exit(1); }\""
+        "clear-router-cache": "bin/fluxor clear-router-cache"
     },
     "minimum-stability": "stable",
     "prefer-stable": true,
