@@ -2,6 +2,11 @@
 
 All notable changes to Fluxor Core will be documented in this file.
 
+## [1.1.1] - 2026-06-18
+
+### Fixed
+- Restored the `DISABLE_FLUXOR_CACHE` env toggle, which was inadvertently dropped in 1.1.0 during the file-router migration. When set, the router is built with a null cache dir so no compiled-route cache is written.
+
 ## [1.1.0] - 2026-06-18
 
 ### Changed

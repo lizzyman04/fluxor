@@ -14,7 +14,7 @@ Fluxor Core is the **engine behind the Fluxor PHP framework** - a minimal, elega
 Unlike monolithic frameworks, Fluxor Core gives you:
 
 - 🚀 **Blazing fast performance** (boot under 10ms)
-- 📦 **Zero core dependencies** - just pure PHP!
+- 📦 **Minimal dependencies** - routing is powered by the standalone, zero-dependency [`lizzyman04/file-router`](https://github.com/lizzyman04/file-router) package; nothing else
 - 🔍 **Transparent code** - no magic, you can read everything
 - 🎯 **File-based routing** inspired by Next.js
 - 💎 **Elegant Flow syntax** for route definitions
@@ -64,6 +64,12 @@ $app->run();
 ```
 
 ### File-based Routing
+The directory structure is the route table. URL matching (dynamic `[id]`,
+catch-all `[...slug]`, route groups, the compiled-route cache) is handled by
+the standalone [`lizzyman04/file-router`](https://github.com/lizzyman04/file-router)
+engine; Fluxor adds the `Flow` syntax and dispatch on top. The route-file
+syntax below is unchanged.
+
 ```php
 // app/router/users/[id].php
 use Fluxor\Flow;
