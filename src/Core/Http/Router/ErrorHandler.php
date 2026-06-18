@@ -2,7 +2,7 @@
 
 namespace Fluxor\Core\Http\Router;
 
-use Fluxor\App;
+use Fluxor\Core\App;
 use Fluxor\Core\View;
 use Fluxor\Core\Http\Request;
 use Fluxor\Core\Http\Response;

@@ -1,6 +1,6 @@
 <?php
 
-use Fluxor\Flow;
-use Fluxor\Response;
+use Fluxor\Core\Routing\Flow;
+use Fluxor\Core\Http\Response;
 
 Flow::GET()->do(fn($req) => Response::json(['route' => 'about']));

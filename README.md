@@ -31,34 +31,37 @@ composer require lizzyman04/fluxor
 <?php
 require 'vendor/autoload.php';
 
-$app = new Fluxor\App();
+$app = new Fluxor\Core\App();
 $app->run();
 ```
 
-## 🎯 Zero Config Import
+## 🎯 Imports
 
-All core classes are automatically re-exported for cleaner code:
+Import core classes from their namespaces (PSR-4 autoloaded):
 
 ```php
-use Fluxor\App;
-use Fluxor\Request;
-use Fluxor\Response;
-use Fluxor\Flow;
-use Fluxor\View;
+use Fluxor\Core\App;
+use Fluxor\Core\Http\Request;
+use Fluxor\Core\Http\Response;
+use Fluxor\Core\Routing\Flow;
+use Fluxor\Core\View;
 ```
+
+> **Breaking change in 2.0:** the short-name aliases `Fluxor\Flow`, `Fluxor\App`,
+> `Fluxor\Response`, etc. were removed. Use the fully-qualified namespaces above.
 
 ## 💡 Core Concepts
 
 ### Application Instance
 ```php
-$app = new Fluxor\App();
+$app = new Fluxor\Core\App();
 $basePath = $app->getBasePath();  // Auto-detected!
 $baseUrl = $app->getBaseUrl();    // Auto-detected!
 ```
 
 ### Global CORS Configuration
 ```php
-$app = new Fluxor\App();
+$app = new Fluxor\Core\App();
 $app->cors()->allowOrigin('*')->enable();
 $app->run();
 ```
@@ -72,8 +75,8 @@ syntax below is unchanged.
 
 ```php
 // app/router/users/[id].php
-use Fluxor\Flow;
-use Fluxor\Response;
+use Fluxor\Core\Routing\Flow;
+use Fluxor\Core\Http\Response;
 
 Flow::GET()->do(function($req) {
     $userId = $req->param('id');
@@ -86,14 +89,14 @@ Flow::GET()->do(function($req) {
 $router = $app->getRouter();
 $router->addMiddleware('auth', function($request) {
     if (!$request->isAuthenticated()) {
-        return Fluxor\Response::redirect('/login');
+        return Fluxor\Core\Http\Response::redirect('/login');
     }
 });
 ```
 
 ### Request & Response
 ```php
-use Fluxor\Response;
+use Fluxor\Core\Http\Response;
 
 $id = $request->param('id');
 $email = $request->input('email');
@@ -105,7 +108,7 @@ return Response::view('profile', ['user' => $user]);
 
 ### Flow Syntax
 ```php
-use Fluxor\Flow;
+use Fluxor\Core\Routing\Flow;
 
 // Simple route
 Flow::GET()->do(fn($req) => 'Hello World');
@@ -151,7 +154,7 @@ dd($data);  // Dump and die
 
 ## 📚 Documentation
 
-**Full documentation available at:** 👉 [**https://lizzyman04.github.io/fluxor-php**](https://lizzyman04.github.io/fluxor-php)
+**Full documentation available at:** 👉 [**https://fluxor.tudocomlizzyman.com**](https://fluxor.tudocomlizzyman.com)
 
 The documentation includes:
 - Installation guide

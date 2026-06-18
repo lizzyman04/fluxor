@@ -2,6 +2,11 @@
 
 All notable changes to Fluxor Core will be documented in this file.
 
+## [2.0.0] - 2026-06-18
+
+### Removed (BREAKING)
+- Removed the `Fluxor\*` short-name class aliases (`src/Fluxor.php`). Classes are now referenced only by their real, PSR-4-autoloaded namespaces. Migration: replace `Fluxor\App` → `Fluxor\Core\App`, `Fluxor\Flow` → `Fluxor\Core\Routing\Flow`, `Fluxor\Request` → `Fluxor\Core\Http\Request`, `Fluxor\Response` → `Fluxor\Core\Http\Response`, `Fluxor\View` → `Fluxor\Core\View`, `Fluxor\Controller` → `Fluxor\Core\Controller`, `Fluxor\Router` → `Fluxor\Core\Http\Router`, `Fluxor\Fetch` → `Fluxor\Core\Http\Fetch`, exceptions → `Fluxor\Exceptions\*`, `Fluxor\ControllerInterface` → `Fluxor\Contracts\ControllerInterface`, `Fluxor\HttpStatusCode`/`Fluxor\Str` → `Fluxor\Helpers\*`, `Fluxor\App\*` → `Fluxor\Core\App\*`, `Fluxor\Foundation\*` → `Fluxor\Core\Foundation\*`.
+
 ## [1.1.1] - 2026-06-18
 
 ### Fixed
