@@ -9,7 +9,7 @@ use Fluxor\Helpers\Str;
 use Fluxor\Helpers\HttpStatusCode;
 
 if (!\function_exists('str')) {
-    function str(string $value = null)
+    function str(?string $value = null)
     {
         if ($value === null) {
             return new Str();
@@ -19,7 +19,7 @@ if (!\function_exists('str')) {
 }
 
 if (!\function_exists('http_status')) {
-    function http_status(int $code = null)
+    function http_status(?int $code = null)
     {
         if ($code === null) {
             return new HttpStatusCode();
