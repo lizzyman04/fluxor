@@ -2,10 +2,13 @@
 
 namespace Fluxor\Contracts;
 
-use Fluxor\Core\Http\Request;
-
+/**
+ * Marker interface for controllers.
+ *
+ * Controllers receive the Request as an argument to their action method
+ * (e.g. `public function show(Request $req)`), so it is an input rather than
+ * mutable controller state. This interface intentionally declares no methods.
+ */
 interface ControllerInterface
 {
-    public function setRequest(Request $request): void;
-    public function getRequest(): Request;
 }

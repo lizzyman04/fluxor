@@ -9,11 +9,6 @@ Thumbs.db
 /templates/copied/
 /storage/
 /.phpunit.cache/
-
-# Local sibling clones (not part of this package)
-/fluxor/
-/fluxor-php/
-/fluxor-mvc-template/
 .env
 .env.local
 .env.production
