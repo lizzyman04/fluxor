@@ -39,11 +39,17 @@
             "src/Helpers/Functions.php"
         ]
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Fluxor\\Tests\\": "tests/"
+        }
+    },
     "bin": [
         "bin/fluxor"
     ],
     "scripts": {
-        "clear-router-cache": "bin/fluxor clear-router-cache"
+        "clear-router-cache": "bin/fluxor clear-router-cache",
+        "test": "phpunit"
     },
     "minimum-stability": "stable",
     "prefer-stable": true,
