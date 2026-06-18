@@ -62,9 +62,7 @@ class App
             throw new AppException('Cannot modify configuration after application boot');
         }
 
-        foreach ($config as $key => $value) {
-            $this->app->getConfig()->set($key, $value);
-        }
+        $this->app->getConfig()->setMany($config);
 
         return $this;
     }
