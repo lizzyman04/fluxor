@@ -155,7 +155,8 @@ class App
         $this->router = new Router($this->basePath, $this->baseUrl);
         $this->router->setPaths(
             $this->config->get('router_path'),
-            $this->config->get('views_path')
+            $this->config->get('views_path'),
+            $this->getStoragePath() . '/cache'
         );
 
         $this->container->initializeCoreServices($this->config, $this->router);

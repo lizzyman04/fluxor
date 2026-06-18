@@ -2,6 +2,18 @@
 
 All notable changes to Fluxor Core will be documented in this file.
 
+## [1.1.0] - 2026-06-18
+
+### Changed
+- Route matching now delegates to the standalone [`lizzyman04/file-router`](https://github.com/lizzyman04/file-router) package (dogfooding the extracted router). The `Flow::METHOD()` route-file syntax and behavior are unchanged — `FlowMethodExtractor` keeps existing route files working as-is.
+- `Router::setPaths()` accepts an optional `$cacheDir` for the compiled-route cache.
+
+### Added
+- `Router::resolve(Request): ?array` — resolve a request to route info (match / 404 / 405) without dispatching.
+
+### Removed
+- Internal `Core\Http\Router\Matcher` (replaced by `file-router`). Route-cache files are now named `file_router_*.php`; `Router::clearRouterCache()` replaces `Matcher::clearRouterCache()`.
+
 ## [1.0.5] - 2026-05-23
 
 ### Fixed

@@ -20,7 +20,7 @@ $command = $argv[1] ?? null;
 
 switch ($command) {
     case 'clear-router-cache':
-        \Fluxor\Core\Http\Router\Matcher::clearRouterCache();
+        \Fluxor\Core\Http\Router::clearRouterCache();
         if (!$silent) {
             echo "Route cache cleared.\n";
         }
