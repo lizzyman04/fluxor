@@ -100,10 +100,6 @@ class Flow
                 throw new AppException("Method {$method} not found in {$controllerClass}");
             }
 
-            if (\method_exists($controller, 'setRequest')) {
-                $controller->setRequest($req);
-            }
-
             return $controller->$method($req);
         });
     }

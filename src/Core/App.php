@@ -7,17 +7,23 @@ use Fluxor\Core\Http\Router;
 use Fluxor\Core\Http\Cors;
 use Fluxor\Core\Http\Request;
 use Fluxor\Core\Http\Response;
-use Fluxor\Core\App\Application;
+use Fluxor\Core\App\Config;
 use Fluxor\Core\App\Environment;
-use Fluxor\Exceptions\AppException;
 use Fluxor\Core\App\ExceptionHandler;
+use Fluxor\Core\Foundation\ServiceContainer;
+use Fluxor\Exceptions\AppException;
 
 class App
 {
     private static ?self $instance = null;
-    private Application $app;
-    private ?ExceptionHandler $exceptionHandler = null;
+
+    private ServiceContainer $container;
+    private Config $config;
+    private Router $router;
+    private string $basePath;
+    private string $baseUrl;
     private bool $booted = false;
+    private ?ExceptionHandler $exceptionHandler = null;
     private ?Cors $cors = null;
 
     public function __construct(?string $basePath = null, bool $forceNew = false)
@@ -26,11 +32,13 @@ class App
             throw new AppException('App already initialized. Use App::getInstance()');
         }
 
-        $basePath = Environment::detectBasePath($basePath);
-        $baseUrl  = Environment::detectBaseUrl();
+        $this->basePath = Environment::detectBasePath($basePath);
+        $this->baseUrl  = Environment::detectBaseUrl();
 
-        $this->app  = new Application($basePath, $baseUrl);
-        $this->cors = new Cors();
+        $this->container = new ServiceContainer();
+        Environment::loadEnvironment($this->basePath);
+        $this->config = Config::createDefault($this->basePath, $this->baseUrl);
+        $this->cors   = new Cors();
 
         self::$instance = $this;
     }
@@ -53,7 +61,12 @@ class App
 
     public function getService(string $name)
     {
-        return $this->app->getContainer()->get($name);
+        return $this->container->get($name);
+    }
+
+    public function getContainer(): ServiceContainer
+    {
+        return $this->container;
     }
 
     public function setConfig(array $config): self
@@ -62,46 +75,43 @@ class App
             throw new AppException('Cannot modify configuration after application boot');
         }
 
-        foreach ($config as $key => $value) {
-            $this->app->getConfig()->set($key, $value);
-        }
+        $this->config->setMany($config);
 
         return $this;
     }
 
     public function getConfig(?string $key = null, $default = null)
     {
-        $config = $this->app->getConfig();
         if ($key === null) {
-            return $config->all();
+            return $this->config->all();
         }
-        return $config->get($key, $default);
+        return $this->config->get($key, $default);
     }
 
     public function lockConfig(string ...$keys): self
     {
         if (empty($keys)) {
-            $this->app->getConfig()->freeze();
+            $this->config->freeze();
         } else {
-            $this->app->getConfig()->lock(...$keys);
+            $this->config->lock(...$keys);
         }
         return $this;
     }
 
     public function unlockConfig(string ...$keys): self
     {
-        $this->app->getConfig()->unlock(...$keys);
+        $this->config->unlock(...$keys);
         return $this;
     }
 
     public function isConfigLocked(string $key): bool
     {
-        return $this->app->getConfig()->isLocked($key);
+        return $this->config->isLocked($key);
     }
 
     public function getLockedConfigKeys(): array
     {
-        return $this->app->getConfig()->getLockedKeys();
+        return $this->config->getLockedKeys();
     }
 
     public function cors(?array $config = null): Cors
@@ -130,12 +140,28 @@ class App
             return $this;
         }
 
-        $errors = $this->app->getConfig()->validate();
+        $errors = $this->config->validate();
         if (!empty($errors)) {
             throw new AppException('Configuration errors: ' . \implode(', ', $errors));
         }
 
-        $this->app->bootstrap();
+        Environment::configureRuntime(
+            $this->config->get('environment'),
+            $this->config->get('debug')
+        );
+
+        \date_default_timezone_set($this->config->get('timezone'));
+
+        $this->router = new Router($this->basePath, $this->baseUrl);
+        $this->router->setPaths(
+            $this->config->get('router_path'),
+            $this->config->get('views_path')
+        );
+
+        $this->container->initializeCoreServices($this->config, $this->router);
+        $this->container->set('config', $this->config);
+        $this->container->set('router', $this->router);
+
         $this->booted = true;
 
         return $this;
@@ -144,28 +170,28 @@ class App
     public function getRouter(): Router
     {
         $this->ensureBooted();
-        return $this->app->getRouter();
+        return $this->router;
     }
 
     public function getBasePath(): string
     {
-        return $this->app->getBasePath();
+        return $this->basePath;
     }
 
     public function getStoragePath(): string
     {
-        return $this->app->getBasePath() . '/storage';
+        return $this->basePath . '/storage';
     }
 
     public function getBaseUrl(): string
     {
-        return $this->app->getBaseUrl();
+        return $this->baseUrl;
     }
 
     public function getEnvironment(): string
     {
         $this->ensureBooted();
-        return $this->app->getConfig()->get('environment');
+        return $this->config->get('environment');
     }
 
     public function isDevelopment(): bool
@@ -176,7 +202,7 @@ class App
     public function isDebug(): bool
     {
         $this->ensureBooted();
-        return (bool) $this->app->getConfig()->get('debug', false);
+        return (bool) $this->config->get('debug', false);
     }
 
     public function isProduction(): bool
@@ -203,8 +229,8 @@ class App
             }
 
             // Para outros métodos, passa o CORS para o Router aplicar após resolver a rota
-            $this->app->getRouter()->setCors($this->cors);
-            $this->app->getRouter()->dispatch($request);
+            $this->router->setCors($this->cors);
+            $this->router->dispatch($request);
         } catch (Throwable $e) {
             $this->getExceptionHandler()->handle($e);
         }
@@ -248,7 +274,7 @@ class App
         $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
         $url        = \parse_url($requestUri, PHP_URL_PATH) ?? '/';
 
-        $baseUrl = $this->app->getConfig()->get('base_url', $this->app->getBaseUrl());
+        $baseUrl = $this->config->get('base_url', $this->baseUrl);
         if (!empty($baseUrl)) {
             $parsedBase = \parse_url($baseUrl);
             $basePath   = $parsedBase['path'] ?? '';

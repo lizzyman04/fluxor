@@ -49,7 +49,6 @@ class_alias(Contracts\ControllerInterface::class, ControllerInterface::class); /
 // =============================================================================
 // Core App Internals (For advanced usage)
 // =============================================================================
-class_alias(Core\App\Application::class, App\Application::class);           // Fluxor\App\Application
 class_alias(Core\App\Config::class, App\Config::class);                     // Fluxor\App\Config
 class_alias(Core\App\Environment::class, App\Environment::class);           // Fluxor\App\Environment
 class_alias(Core\App\ExceptionHandler::class, App\ExceptionHandler::class); // Fluxor\App\ExceptionHandler

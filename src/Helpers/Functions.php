@@ -11,7 +11,7 @@ use Fluxor\Helpers\HttpStatusCode;
 use Fluxor\Exceptions\HttpException;
 
 if (!\function_exists('app')) {
-    function app(string $service = null)
+    function app(?string $service = null)
     {
         $instance = App::getInstance();
         return $service ? $instance?->getService($service) : $instance;
@@ -108,7 +108,7 @@ if (!\function_exists('http_status_message')) {
 }
 
 if (!\function_exists('abort')) {
-    function abort(int $code, string $message = null)
+    function abort(int $code, ?string $message = null)
     {
         $message = $message ?? http_status_message($code);
         throw new HttpException($message, $code);

@@ -10,7 +10,6 @@ class Router
 {
     private string $basePath;
     private string $baseUrl;
-    private array $config = [];
     private array $middlewares = [];
     private Matcher $matcher;
     private ErrorHandler $errorHandler;
@@ -22,12 +21,10 @@ class Router
         $this->baseUrl = $baseUrl;
     }
 
-    public function setConfig(array $config): self
+    public function setPaths(?string $routerPath = null, ?string $viewsPath = null): self
     {
-        $this->config = $config;
-
-        $routerPath = $this->config['router_path'] ?? $this->basePath . '/app/router';
-        $viewsPath = $this->config['views_path'] ?? $this->basePath . '/src/Views';
+        $routerPath ??= $this->basePath . '/app/router';
+        $viewsPath ??= $this->basePath . '/src/Views';
 
         $this->matcher = new Matcher($routerPath);
         $this->errorHandler = new ErrorHandler($routerPath, $viewsPath);
@@ -114,7 +111,7 @@ class Router
         $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
         $url = \parse_url($requestUri, PHP_URL_PATH) ?? '/';
 
-        $baseUrl = $this->config['base_url'] ?? $this->baseUrl;
+        $baseUrl = $this->baseUrl;
 
         if (!empty($baseUrl)) {
             $basePath = \parse_url($baseUrl, PHP_URL_PATH) ?? '';

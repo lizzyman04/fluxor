@@ -7,6 +7,8 @@ Thumbs.db
 *.log
 /tests/temp/
 /templates/copied/
+/storage/
+/.phpunit.cache/
 .env
 .env.local
 .env.production
