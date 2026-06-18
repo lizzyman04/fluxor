@@ -86,4 +86,32 @@ class RouterResolveTest extends TestCase
         $this->assertArrayNotHasKey('method_not_allowed', $info);
         $this->assertSame('PUT', $info['method']);
     }
+
+    public function testWritesRouteCacheWhenCacheDirProvided(): void
+    {
+        $cacheDir = \sys_get_temp_dir() . '/fluxor_router_cache_' . \uniqid();
+
+        $router = new Router();
+        $router->setPaths(__DIR__ . '/../fixtures/router', __DIR__ . '/../fixtures', $cacheDir);
+        $router->resolve(new Request(['method' => 'GET', 'path' => '/about']));
+
+        $this->assertNotEmpty(\glob($cacheDir . '/file_router_*.php'));
+
+        foreach (\glob($cacheDir . '/*') ?: [] as $f) {
+            \unlink($f);
+        }
+        @\rmdir($cacheDir);
+    }
+
+    public function testWritesNoCacheWhenCacheDirIsNull(): void
+    {
+        $cacheDir = \sys_get_temp_dir() . '/fluxor_router_nocache_' . \uniqid();
+
+        $router = new Router();
+        // null cache dir => DISABLE_FLUXOR_CACHE behavior.
+        $router->setPaths(__DIR__ . '/../fixtures/router', __DIR__ . '/../fixtures', null);
+        $router->resolve(new Request(['method' => 'GET', 'path' => '/about']));
+
+        $this->assertFalse(\is_dir($cacheDir));
+    }
 }

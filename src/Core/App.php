@@ -152,11 +152,15 @@ class App
 
         \date_default_timezone_set($this->config->get('timezone'));
 
+        // DISABLE_FLUXOR_CACHE=true skips the compiled-route cache (passing a
+        // null cache dir to the router), e.g. during local development.
+        $cacheDisabled = (bool) Environment::get('DISABLE_FLUXOR_CACHE', false);
+
         $this->router = new Router($this->basePath, $this->baseUrl);
         $this->router->setPaths(
             $this->config->get('router_path'),
             $this->config->get('views_path'),
-            $this->getStoragePath() . '/cache'
+            $cacheDisabled ? null : $this->getStoragePath() . '/cache'
         );
 
         $this->container->initializeCoreServices($this->config, $this->router);
