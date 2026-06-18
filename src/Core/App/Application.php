@@ -37,7 +37,10 @@ class Application
         \date_default_timezone_set($this->config->get('timezone'));
 
         $this->router = new Router($this->basePath, $this->baseUrl);
-        $this->router->setConfig($this->config->all());
+        $this->router->setPaths(
+            $this->config->get('router_path'),
+            $this->config->get('views_path')
+        );
 
         $this->container->initializeCoreServices($this->config, $this->router);
 
