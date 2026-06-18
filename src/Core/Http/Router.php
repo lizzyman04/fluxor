@@ -2,16 +2,18 @@
 
 namespace Fluxor\Core\Http;
 
+use Fluxor\Core\App;
 use Fluxor\Core\Http\Router\Dispatcher;
 use Fluxor\Core\Http\Router\ErrorHandler;
-use Fluxor\Core\Http\Router\Matcher;
+use FileRouter\FileRouter;
+use FileRouter\Extractor\FlowMethodExtractor;
 
 class Router
 {
     private string $basePath;
     private string $baseUrl;
     private array $middlewares = [];
-    private Matcher $matcher;
+    private FileRouter $fileRouter;
     private ErrorHandler $errorHandler;
     private ?Cors $cors = null;
 
@@ -21,17 +23,51 @@ class Router
         $this->baseUrl = $baseUrl;
     }
 
-    public function setPaths(?string $routerPath = null, ?string $viewsPath = null): self
+    public function setPaths(?string $routerPath = null, ?string $viewsPath = null, ?string $cacheDir = null): self
     {
         $routerPath ??= $this->basePath . '/app/router';
         $viewsPath ??= $this->basePath . '/src/Views';
 
-        $this->matcher = new Matcher($routerPath);
+        // Route matching is delegated to the standalone lizzyman04/file-router
+        // package. The FlowMethodExtractor keeps Fluxor's Flow::METHOD() route
+        // files working unchanged; Flow dispatch still happens in Dispatcher.
+        $this->fileRouter = new FileRouter($routerPath, [
+            'methodExtractor' => new FlowMethodExtractor(),
+            'cacheDir' => $cacheDir,
+        ]);
+
         $this->errorHandler = new ErrorHandler($routerPath, $viewsPath);
 
-        $this->matcher->compile();
-
         return $this;
+    }
+
+    /**
+     * Resolve a request to a route. Returns null for a 404, an array with
+     * 'method_not_allowed' for a 405, or the route info for a match.
+     */
+    public function resolve(Request $request): ?array
+    {
+        $match = $this->fileRouter->match($request->method, $request->path);
+
+        if ($match === null) {
+            return null;
+        }
+
+        if ($match->isMethodNotAllowed()) {
+            return [
+                'method_not_allowed' => true,
+                'allowed_methods' => $match->allowedMethods,
+                'pattern' => $match->pattern,
+            ];
+        }
+
+        return [
+            'file' => $match->file,
+            'params' => $match->params,
+            'router_path' => \dirname($match->file),
+            'pattern' => $match->pattern,
+            'method' => $match->method,
+        ];
     }
 
     public function setCors(Cors $cors): void
@@ -61,7 +97,7 @@ class Router
             return;
         }
 
-        $routeInfo = $this->matcher->find($request->path, $request->method);
+        $routeInfo = $this->resolve($request);
 
         if ($routeInfo === null) {
             $this->errorHandler->handleNotFound($request)->send();
@@ -176,7 +212,24 @@ class Router
 
     public function clearCache(): void
     {
-        $this->matcher?->clearCache();
+        if (isset($this->fileRouter)) {
+            $this->fileRouter->clearCache();
+        }
+    }
+
+    /**
+     * Remove file-router's compiled route cache files from storage/cache.
+     * Used by the `fluxor clear-router-cache` CLI command.
+     */
+    public static function clearRouterCache(): void
+    {
+        $app = App::getInstance();
+        $storagePath = $app ? $app->getStoragePath() : \getcwd() . '/storage';
+        $cacheDir = $storagePath . '/cache';
+
+        foreach (\glob($cacheDir . '/file_router_*.php') ?: [] as $file) {
+            @\unlink($file);
+        }
     }
 
     public function getMiddlewares(): array
