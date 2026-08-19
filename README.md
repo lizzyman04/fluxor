@@ -154,7 +154,7 @@ dd($data);  // Dump and die
 
 ## 📚 Documentation
 
-**Full documentation available at:** 👉 [**https://fluxor.tudocomlizzyman.com**](https://fluxor.tudocomlizzyman.com)
+**Full documentation available at:** 👉 [**https://lizzyman04.com/fluxor-php**](https://lizzyman04.com/fluxor-php)
 
 The documentation includes:
 - Installation guide
